@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wayfinding · Via Sciesa 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  body { margin: 0; }
+  .fade-in { animation: fadeSlide 0.25s ease-out; }
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .display-font { font-family: 'Space Grotesk', sans-serif; }
+  .mono-font { font-family: 'IBM Plex Mono', monospace; }
+  ::-webkit-scrollbar { height: 6px; width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #25406A; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect } = React;
+
+/* --- Icone SVG minimali, nessuna dipendenza esterna (sostituiscono lucide-react) --- */
+const Icon = {
+  MapPin: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
+    </svg>
+  ),
+  ArrowRight: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+    </svg>
+  ),
+  Home: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /><path d="M9 22V12h6v10" />
+    </svg>
+  ),
+  Building2: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="1" /><path d="M9 22v-4h6v4" />
+      <path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01" />
+    </svg>
+  ),
+  ScanLine: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 12h10" />
+    </svg>
+  ),
+  ImageOff: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m2 2 20 20" /><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83" /><path d="M13.5 13.5 21 21" />
+      <path d="M21 8V5a2 2 0 0 0-2-2H5c-.5 0-.9.15-1.3.4" /><path d="M3 3v15.5c0 1.1.9 2 2 2h15.5" />
+    </svg>
+  ),
+  ArrowUpCircle: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><path d="m16 12-4-4-4 4" /><path d="M12 16V8" />
+    </svg>
+  ),
+  ArrowDownCircle: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><path d="m8 12 4 4 4-4" /><path d="M12 8v8" />
+    </svg>
+  ),
+  Search: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+    </svg>
+  ),
+  X: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+    </svg>
+  ),
+};
+
+
+const PALETTE = {
+  bg: "#0F1B2D",
+  panel: "#152744",
+  panelAlt: "#1B2F52",
+  grid: "#25406A",
+  amber: "#FFB100",
+  amberSoft: "#7A5A16",
+  text: "#EDEFF2",
+  muted: "#8FA0B8",
+};
+
+const FLOOR0_IMG = "https://www.ied.it/_default_upload_bucket/foto-mappa-piano-terra-sciesa.png";
+
+const FLOORS = [
+  { id: 0, label: "Piano Terra", code: "PT", hasPhoto: true },
+  { id: 1, label: "Primo Piano", code: "P1", hasPhoto: false },
+  { id: 2, label: "Secondo Piano", code: "P2", hasPhoto: false },
+];
+
+// Coordinate stimate sulla foto reale della planimetria del piano terra
+const LOCATIONS = [
+  {
+    id: "reception",
+    code: "PT-REC",
+    name: "Reception",
+    floor: 0,
+    x: 40,
+    y: 83,
+    time: "09:00 – 09:30",
+    activity: "Accoglienza e registrazione badge",
+    desc: "Il punto di partenza del percorso. Qui ritiri il badge e la mappa cartacea dei laboratori.",
+  },
+  {
+    id: "ufficio-comunicazione",
+    code: "PT-COM",
+    name: "Ufficio Comunicazione",
+    floor: 0,
+    x: 54,
+    y: 83,
+    time: "09:00 – 13:00",
+    activity: "Punto informazioni su comunicazione ed eventi",
+    desc: "Adiacente alla reception, sulla destra: qui trovi il team comunicazione dell'edificio.",
+  },
+  {
+    id: "arti-visive-2",
+    code: "PT-AV2",
+    name: "Ufficio Arti Visive 2",
+    floor: 0,
+    x: 10,
+    y: 30,
+    time: "09:00 – 13:00",
+    activity: "Spazio docenti area artistica",
+    desc: "Ufficio dei docenti di arti visive, sul lato ovest dell'edificio verso il cortile.",
+  },
+  {
+    id: "arti-visive-1",
+    code: "PT-AV1",
+    name: "Ufficio Arti Visive 1",
+    floor: 0,
+    x: 10,
+    y: 42,
+    time: "09:00 – 13:00",
+    activity: "Spazio docenti area artistica",
+    desc: "Secondo ufficio dei docenti di arti visive, adiacente al primo.",
+  },
+  {
+    id: "segreteria",
+    code: "PT-SEG",
+    name: "Segreteria Didattica",
+    floor: 0,
+    x: 10,
+    y: 68,
+    time: "09:00 – 13:00",
+    activity: "Punto informazioni e segreteria",
+    desc: "Per qualsiasi dubbio organizzativo durante la giornata, la segreteria è qui.",
+  },
+  {
+    id: "aula-magna",
+    code: "PT-S10",
+    name: "S10 · Aula Magna",
+    floor: 0,
+    x: 42,
+    y: 15,
+    time: "09:45 – 10:30",
+    activity: "Apertura e presentazione della giornata",
+    desc: "Introduzione ai laboratori e alle attività della giornata, con tutti i partecipanti.",
+  },
+  {
+    id: "aula-s9",
+    code: "PT-S9",
+    name: "S9 · Aula",
+    floor: 0,
+    x: 64,
+    y: 10,
+    time: "09:45 – 10:30",
+    activity: "Sessione introduttiva parallela",
+    desc: "Seconda aula per l'introduzione, per chi non trova posto in Aula Magna.",
+  },
+  {
+    id: "lab-s8",
+    code: "PT-S8",
+    name: "S8 · Lab. Informatica",
+    floor: 0,
+    x: 87,
+    y: 21,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio di coding",
+    desc: "Si creano piccoli progetti di programmazione a blocchi e si condividono con il gruppo.",
+  },
+  {
+    id: "lab-s4",
+    code: "PT-S4",
+    name: "S4 · Laboratorio",
+    floor: 0,
+    x: 42,
+    y: 40,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio scientifico",
+    desc: "Piccoli esperimenti pratici a tema scienze, in una delle sale più raccolte dell'edificio.",
+  },
+  {
+    id: "lab-s5",
+    code: "PT-S5",
+    name: "S5 · Lab. Informatica",
+    floor: 0,
+    x: 65,
+    y: 45,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio di grafica digitale",
+    desc: "Si sperimenta con strumenti di disegno e grafica digitale su computer.",
+  },
+  {
+    id: "lab-s3",
+    code: "PT-S3",
+    name: "S3 · Lab. Informatica",
+    floor: 0,
+    x: 42,
+    y: 54,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio di robotica educativa",
+    desc: "Si assembla un piccolo robot e lo si programma per seguire un percorso semplice.",
+  },
+  {
+    id: "lab-s6",
+    code: "PT-S6",
+    name: "S6 · Lab. Informatica",
+    floor: 0,
+    x: 78,
+    y: 40,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio di suono e musica digitale",
+    desc: "Si registrano e montano brevi tracce audio con strumenti digitali di base.",
+  },
+  {
+    id: "lab-s7",
+    code: "PT-S7",
+    name: "S7 · Lab. Informatica",
+    floor: 0,
+    x: 88,
+    y: 50,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio di editing video",
+    desc: "Si montano brevi clip video girate durante la giornata con software semplici.",
+  },
+  {
+    id: "lab-s2",
+    code: "PT-S2",
+    name: "S2 · Lab. Informatica",
+    floor: 0,
+    x: 42,
+    y: 62,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio di animazione digitale",
+    desc: "Si creano brevi animazioni frame-by-frame con strumenti digitali di base.",
+  },
+  {
+    id: "lab-s1",
+    code: "PT-S1",
+    name: "S1 · Lab. Informatica",
+    floor: 0,
+    x: 42,
+    y: 70,
+    time: "10:45 – 12:00",
+    activity: "Laboratorio making e stampa 3D",
+    desc: "Si progetta un piccolo oggetto e lo si vede prendere forma sulla stampante 3D.",
+  },
+];
+
+const ORDER = [
+  "reception",
+  "ufficio-comunicazione",
+  "arti-visive-2",
+  "arti-visive-1",
+  "segreteria",
+  "aula-magna",
+  "aula-s9",
+  "lab-s8",
+  "lab-s4",
+  "lab-s5",
+  "lab-s6",
+  "lab-s3",
+  "lab-s7",
+  "lab-s2",
+  "lab-s1",
+];
+
+// Posizioni stimate delle scale sulla foto del Piano Terra.
+// Finché non abbiamo le foto di Primo e Secondo Piano, si assume che
+// ogni scala mantenga la stessa posizione (x,y) salendo di piano:
+// è un'approssimazione ragionevole, da correggere quando arrivano le foto reali.
+const STAIRS = [
+  { id: "scala-a", label: "Scala A", x: 21, y: 84 },
+  { id: "scala-b", label: "Scala B", x: 10, y: 59 },
+  { id: "scala-c", label: "Scala C", x: 10, y: 20 },
+  { id: "scala-d", label: "Scala D", x: 34, y: 14 },
+  { id: "scala-e", label: "Scala E", x: 62, y: 28 },
+  { id: "scala-f", label: "Scala F", x: 92, y: 40 },
+];
+
+function WayfindingPrototype() {
+  const [floor, setFloor] = useState(0);
+  const [selectedId, setSelectedId] = useState(null);
+  const [selectedStairId, setSelectedStairId] = useState(null);
+  const [selectedStairDirection, setSelectedStairDirection] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const searchResults =
+    searchQuery.trim().length > 0
+      ? LOCATIONS.filter(
+          (l) =>
+            l.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+            l.code.toLowerCase().includes(searchQuery.trim().toLowerCase())
+        ).slice(0, 6)
+      : [];
+
+  // --- Zoom & pan della mappa: l'immagine si ingrandisce, i pin restano sempre
+  // della stessa dimensione a schermo e si spostano solo per seguire il punto giusto.
+  const canvasRef = useRef(null);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
+  const [mapActive, setMapActive] = useState(false);
+  const [overlayShown, setOverlayShown] = useState(false);
+  const gestureRef = useRef({ lastDist: null, lastMid: null, lastTouch: null });
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const update = () => setCanvasSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [floor]);
+
+  const clampView = (next) => {
+    const scaledW = canvasSize.w * next.scale;
+    const scaledH = canvasSize.h * next.scale;
+    const minX = Math.min(0, canvasSize.w - scaledW);
+    const minY = Math.min(0, canvasSize.h - scaledH);
+    return {
+      scale: next.scale,
+      x: Math.max(minX, Math.min(0, next.x)),
+      y: Math.max(minY, Math.min(0, next.y)),
+    };
+  };
+
+  const zoomAt = (midX, midY, scaleDelta) => {
+    setView((prev) => {
+      const newScale = Math.max(1, Math.min(4, prev.scale * scaleDelta));
+      const ratio = newScale / prev.scale;
+      const newX = midX - (midX - prev.x) * ratio;
+      const newY = midY - (midY - prev.y) * ratio;
+      return clampView({ scale: newScale, x: newX, y: newY });
+    });
+  };
+
+  const resetZoom = () => setView({ scale: 1, x: 0, y: 0 });
+
+  const dist = (t1, t2) => Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+  const mid = (t1, t2, rect) => ({
+    x: (t1.clientX + t2.clientX) / 2 - rect.left,
+    y: (t1.clientY + t2.clientY) / 2 - rect.top,
+  });
+
+  const onTouchStart = (e) => {
+    if (!mapActive) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (e.touches.length === 2) {
+      gestureRef.current.lastDist = dist(e.touches[0], e.touches[1]);
+      gestureRef.current.lastMid = mid(e.touches[0], e.touches[1], rect);
+    } else if (e.touches.length === 1) {
+      gestureRef.current.lastTouch = {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      };
+    }
+  };
+
+  const onTouchMove = (e) => {
+    if (!mapActive) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const newDist = dist(e.touches[0], e.touches[1]);
+      const newMid = mid(e.touches[0], e.touches[1], rect);
+      const g = gestureRef.current;
+      if (g.lastDist) {
+        const scaleDelta = newDist / g.lastDist;
+        zoomAt(newMid.x, newMid.y, scaleDelta);
+      }
+      g.lastDist = newDist;
+      g.lastMid = newMid;
+    } else if (e.touches.length === 1 && view.scale > 1) {
+      e.preventDefault();
+      const cur = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      const g = gestureRef.current;
+      if (g.lastTouch) {
+        const dx = cur.x - g.lastTouch.x;
+        const dy = cur.y - g.lastTouch.y;
+        setView((prev) => clampView({ scale: prev.scale, x: prev.x + dx, y: prev.y + dy }));
+      }
+      gestureRef.current.lastTouch = cur;
+    }
+  };
+
+  const onTouchEnd = (e) => {
+    if (e.touches.length < 2) gestureRef.current.lastDist = null;
+    if (e.touches.length < 1) gestureRef.current.lastTouch = null;
+  };
+
+  const onWheel = (e) => {
+    if (!mapActive) return;
+    e.preventDefault();
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const scaleDelta = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    zoomAt(x, y, scaleDelta);
+  };
+
+  // Converte la posizione in percentuale (x%,y%) di un pin nella posizione
+  // reale in pixel dentro il riquadro, tenendo conto dello zoom/pan corrente.
+  const projectPoint = (xPct, yPct) => {
+    const baseX = (xPct / 100) * canvasSize.w;
+    const baseY = (yPct / 100) * canvasSize.h;
+    return { x: view.x + baseX * view.scale, y: view.y + baseY * view.scale };
+  };
+
+  const selectLocation = (id) => {
+    const loc = LOCATIONS.find((l) => l.id === id);
+    if (!loc) return;
+    setFloor(loc.floor);
+    setSelectedId(id);
+    setSelectedStairId(null);
+    setSelectedStairDirection(null);
+  };
+
+  const goToStair = (stair, targetFloor, direction) => {
+    setFloor(targetFloor);
+    setSelectedStairId(stair.id);
+    setSelectedStairDirection(direction);
+    setSelectedId(null);
+  };
+
+  const selected = LOCATIONS.find((l) => l.id === selectedId) || null;
+  const nextId = selected ? ORDER[ORDER.indexOf(selected.id) + 1] : null;
+  const next = nextId ? LOCATIONS.find((l) => l.id === nextId) : null;
+
+  const currentFloor = FLOORS.find((f) => f.id === floor);
+  const pinsOnFloor = LOCATIONS.filter((l) => l.floor === floor);
+
+  return (
+    <div
+      style={{ background: PALETTE.bg, color: PALETTE.text, fontFamily: "'IBM Plex Sans', sans-serif" }}
+      className="min-h-screen w-full"
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        @keyframes fadeSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeSlide 0.25s ease-out; }
+        .display-font { font-family: 'Space Grotesk', sans-serif; }
+        .mono-font { font-family: 'IBM Plex Mono', monospace; }
+        ::-webkit-scrollbar { height: 6px; width: 6px; }
+        ::-webkit-scrollbar-thumb { background: ${PALETTE.grid}; border-radius: 4px; }
+      `}</style>
+
+      <div className="max-w-5xl mx-auto px-3 py-5 md:px-4 md:py-12">
+        {/* Header */}
+        <div className="mb-5 md:mb-8">
+          <div className="flex items-center gap-2 mb-2 md:mb-3" style={{ color: PALETTE.amber }}>
+            <Icon.ScanLine size={16} />
+            <span className="mono-font text-[10px] md:text-xs tracking-widest uppercase">Prototipo · Pianta reale, Via Sciesa 4</span>
+          </div>
+          <h1 className="display-font text-2xl md:text-4xl font-semibold mb-2 md:mb-3 leading-tight">
+            Stessa mappa, ora con la vostra planimetria
+          </h1>
+          <p style={{ color: PALETTE.muted }} className="max-w-2xl leading-relaxed text-sm md:text-base">
+            La piantina del Piano Terra è la foto che mi hai inviato. I pin sono posizionati sopra, alle coordinate
+            stimate di ciascuna stanza. Primo e Secondo Piano restano segnaposto in attesa delle rispettive foto.
+          </p>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-5 md:gap-6 items-start">
+          {/* MAP PANEL */}
+          <div className="w-full lg:flex-1">
+            {/* Ricerca aule con autocompletamento */}
+            <div className="relative mb-4">
+              <div
+                className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
+              >
+                <Icon.Search size={16} color={PALETTE.muted} />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSearchOpen(true);
+                  }}
+                  onFocus={() => setSearchOpen(true)}
+                  onBlur={() => setTimeout(() => setSearchOpen(false), 120)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && searchResults.length > 0) {
+                      selectLocation(searchResults[0].id);
+                      setSearchQuery(searchResults[0].name);
+                      setSearchOpen(false);
+                    } else if (e.key === "Escape") {
+                      setSearchOpen(false);
+                    }
+                  }}
+                  placeholder="Cerca un'aula per nome o codice (es. S3, Reception)"
+                  className="flex-1 bg-transparent outline-none text-sm"
+                  style={{ color: PALETTE.text }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSearchOpen(false);
+                    }}
+                  >
+                    <Icon.X size={15} color={PALETTE.muted} />
+                  </button>
+                )}
+              </div>
+
+              {searchOpen && searchQuery.trim().length > 0 && (
+                <div
+                  className="absolute left-0 right-0 mt-1.5 rounded-xl overflow-hidden fade-in"
+                  style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}`, zIndex: 40 }}
+                >
+                  {searchResults.length > 0 ? (
+                    searchResults.map((loc) => (
+                      <button
+                        key={loc.id}
+                        onMouseDown={() => {
+                          selectLocation(loc.id);
+                          setSearchQuery(loc.name);
+                          setSearchOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2.5 flex items-center justify-between"
+                        style={{ borderBottom: `1px solid ${PALETTE.grid}` }}
+                      >
+                        <div>
+                          <div className="text-sm font-medium">{loc.name}</div>
+                          <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
+                            {loc.code} · {FLOORS[loc.floor].label}
+                          </div>
+                        </div>
+                        <Icon.MapPin size={14} color={PALETTE.amber} />
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2.5 text-sm" style={{ color: PALETTE.muted }}>
+                      Nessuna aula trovata.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* floor tabs */}
+            <div className="flex gap-2 mb-3">
+              {FLOORS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    setFloor(f.id);
+                    setSelectedStairId(null);
+                    setSelectedStairDirection(null);
+                  }}
+                  className="flex-1 rounded-lg py-2.5 px-3 flex flex-col items-center transition-colors"
+                  style={{
+                    background: floor === f.id ? PALETTE.amber : PALETTE.panel,
+                    color: floor === f.id ? "#1a1200" : PALETTE.text,
+                    border: `1px solid ${floor === f.id ? PALETTE.amber : PALETTE.grid}`,
+                  }}
+                >
+                  <span className="display-font font-semibold text-sm">{f.code}</span>
+                  <span className="text-[11px]" style={{ opacity: 0.85 }}>
+                    {f.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* canvas */}
+            <div
+              ref={canvasRef}
+              className="relative w-full rounded-2xl overflow-hidden select-none"
+              style={{
+                aspectRatio: "1100 / 1174",
+                background: PALETTE.panel,
+                border: `1px solid ${PALETTE.grid}`,
+                touchAction: mapActive ? "none" : "pan-y",
+              }}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onWheel={onWheel}
+              onClick={() => {
+                if (!mapActive && !overlayShown) setOverlayShown(true);
+              }}
+            >
+              {/* livello che si ingrandisce/sposta: solo l'immagine vive qui */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: currentFloor.hasPhoto ? `url(${FLOOR0_IMG})` : "none",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+                  transformOrigin: "0 0",
+                }}
+              />
+
+              {!currentFloor.hasPhoto && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+                  <Icon.ImageOff size={28} style={{ color: PALETTE.muted }} />
+                  <p className="text-sm" style={{ color: PALETTE.muted }}>
+                    Nessuna foto caricata per il {currentFloor.label.toLowerCase()}.
+                    <br />
+                    Invia la planimetria di questo piano per attivare i punti qui sopra.
+                  </p>
+                </div>
+              )}
+
+              {currentFloor.hasPhoto && (
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: "linear-gradient(to bottom, rgba(15,27,45,0.05), rgba(15,27,45,0.25))",
+                    transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+                    transformOrigin: "0 0",
+                  }}
+                />
+              )}
+
+              {/* pin e scale vivono FUORI dal livello zoomato: dimensione fissa,
+                  posizione ricalcolata ad ogni zoom/pan per restare ancorati al punto giusto */}
+              {pinsOnFloor.map((loc) => {
+                const p = projectPoint(loc.x, loc.y);
+                const isActive = selectedId === loc.id;
+                const anySelected = selectedId !== null;
+                const size = isActive ? 30 : anySelected ? 16 : 30;
+                return (
+                  <button
+                    key={loc.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectLocation(loc.id);
+                    }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group p-1.5 transition-all"
+                    style={{ left: p.x, top: p.y }}
+                  >
+                    <div
+                      className="rounded-full flex items-center justify-center transition-all group-hover:scale-110"
+                      style={{
+                        width: size,
+                        height: size,
+                        background: isActive ? PALETTE.amber : "#0B1626",
+                        border: `2px solid ${PALETTE.amber}`,
+                        boxShadow: isActive ? `0 0 0 6px ${PALETTE.amberSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
+                        opacity: !isActive && anySelected ? 0.7 : 1,
+                      }}
+                    >
+                      {(isActive || !anySelected) && (
+                        <Icon.MapPin size={14} color={isActive ? "#1a1200" : PALETTE.amber} />
+                      )}
+                    </div>
+                    <span
+                      className="mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded transition-opacity"
+                      style={{
+                        background: "#0B1626",
+                        color: PALETTE.amber,
+                        opacity: !isActive && anySelected ? 0.55 : 1,
+                      }}
+                    >
+                      {loc.code}
+                    </span>
+                  </button>
+                );
+              })}
+              {STAIRS.map((s) => {
+                const directions = floor === 0 ? [1] : floor === 2 ? [-1] : [1, -1];
+                const p = projectPoint(s.x, s.y);
+                return (
+                  <div
+                    key={s.id}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
+                    style={{ left: p.x, top: p.y }}
+                  >
+                    <div className="flex items-center gap-1">
+                      {directions.map((direction) => {
+                        const targetFloor = floor + direction;
+                        const isActive = selectedStairId === s.id && selectedStairDirection === direction;
+                        return (
+                          <button
+                            key={direction}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              goToStair(s, targetFloor, direction);
+                            }}
+                            className="rounded-full flex items-center justify-center transition-transform hover:scale-110 p-1"
+                            style={{
+                              width: 34,
+                              height: 34,
+                              background: isActive ? "#3DDC97" : "#0B1626",
+                              border: "2px solid #3DDC97",
+                              boxShadow: isActive ? "0 0 0 6px #164B36" : "0 1px 6px rgba(0,0,0,0.5)",
+                            }}
+                            title={`${s.label} → ${FLOORS[targetFloor].label}`}
+                          >
+                            {direction === 1 ? (
+                              <Icon.ArrowUpCircle size={15} color={isActive ? "#0B1626" : "#3DDC97"} />
+                            ) : (
+                              <Icon.ArrowDownCircle size={15} color={isActive ? "#0B1626" : "#3DDC97"} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <span
+                      className="mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded"
+                      style={{ background: "#0B1626", color: "#3DDC97" }}
+                    >
+                      {s.label.replace("Scala ", "")}
+                    </span>
+                  </div>
+                );
+              })}
+
+              {view.scale > 1.03 && (
+                <button
+                  onClick={resetZoom}
+                  className="absolute top-2 right-2 mono-font text-[10px] px-2.5 py-1.5 rounded-full"
+                  style={{ background: "rgba(11,22,38,0.85)", color: PALETTE.amber, border: `1px solid ${PALETTE.amber}` }}
+                >
+                  Reset zoom
+                </button>
+              )}
+
+              {/* L'overlay compare solo dopo il primo tocco sulla mappa (che viene
+                  "assorbito" solo per farlo apparire, senza attivare nulla). Il tocco
+                  successivo, sull'overlay stesso, attiva davvero la mappa. */}
+              {overlayShown && !mapActive && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMapActive(true);
+                    setOverlayShown(false);
+                  }}
+                  className="absolute inset-0 flex items-center justify-center fade-in"
+                  style={{ background: "rgba(11,22,38,0.45)", zIndex: 30 }}
+                >
+                  <span
+                    className="mono-font text-xs px-4 py-2 rounded-full flex items-center gap-2"
+                    style={{ background: "rgba(11,22,38,0.9)", color: PALETTE.text, border: `1px solid ${PALETTE.amber}` }}
+                  >
+                    <Icon.MapPin size={13} color={PALETTE.amber} />
+                    Tocca per interagire con la mappa
+                  </span>
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] mt-1.5" style={{ color: PALETTE.muted }}>
+              {mapActive
+                ? "Pizzica per ingrandire — i pin restano della stessa dimensione e seguono la posizione corretta."
+                : overlayShown
+                ? "Tocca ancora per attivare zoom e trascinamento."
+                : "Tocca la mappa per iniziare."}
+            </p>
+          </div>
+
+          {/* PHONE MOCK */}
+          <div className="w-full lg:w-auto flex justify-center">
+            <div
+              className="rounded-[2.25rem] p-2.5 w-full"
+              style={{ background: "#0B1626", border: `1px solid ${PALETTE.grid}`, maxWidth: 300 }}
+            >
+              <div className="flex justify-center mb-1.5">
+                <div className="w-16 h-1.5 rounded-full" style={{ background: PALETTE.grid }} />
+              </div>
+              <div className="rounded-2xl overflow-hidden" style={{ background: PALETTE.bg, height: "min(480px, 62vh)" }}>
+                <div className="h-full overflow-y-auto p-4" key={selectedId || "home"}>
+                  {!selected ? (
+                    <div className="fade-in">
+                      <div className="flex items-center gap-2 mb-4" style={{ color: PALETTE.amber }}>
+                        <Icon.Building2 size={16} />
+                        <span className="mono-font text-[11px] uppercase tracking-wide">
+                          Via Sciesa 4 · {currentFloor.label}
+                        </span>
+                      </div>
+                      {selectedStairId ? (
+                        <div
+                          className="rounded-lg p-2.5 mb-4 flex items-center gap-2"
+                          style={{ background: "#122A22", border: "1px solid #245C45" }}
+                        >
+                          {selectedStairDirection === -1 ? (
+                            <Icon.ArrowDownCircle size={16} color="#3DDC97" />
+                          ) : (
+                            <Icon.ArrowUpCircle size={16} color="#3DDC97" />
+                          )}
+                          <span className="text-xs" style={{ color: "#8FE8C8" }}>
+                            Sei {selectedStairDirection === -1 ? "sceso" : "salito"} da{" "}
+                            {STAIRS.find((s) => s.id === selectedStairId)?.label} — ora sei al{" "}
+                            {currentFloor.label.toLowerCase()}.
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <h2 className="display-font text-lg font-semibold mb-1">In attesa di scansione</h2>
+                          <p className="text-xs mb-4" style={{ color: PALETTE.muted }}>
+                            Inquadra il QR appeso alla porta di una stanza, oppure scegli qui sotto.
+                          </p>
+                        </>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        {LOCATIONS.filter((l) => l.floor === floor).map((loc) => (
+                          <button
+                            key={loc.id}
+                            onClick={() => selectLocation(loc.id)}
+                            className="text-left rounded-lg p-2.5 flex items-center justify-between"
+                            style={{ background: PALETTE.panelAlt, border: `1px solid ${PALETTE.grid}` }}
+                          >
+                            <div>
+                              <div className="text-sm font-medium">{loc.name}</div>
+                              <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
+                                {loc.code} · {loc.time}
+                              </div>
+                            </div>
+                            <Icon.ArrowRight size={14} style={{ color: PALETTE.amber }} />
+                          </button>
+                        ))}
+                        {LOCATIONS.filter((l) => l.floor === floor).length === 0 && (
+                          <p className="text-xs" style={{ color: PALETTE.muted }}>
+                            Nessuna stanza ancora configurata su questo piano.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="fade-in">
+                      <button
+                        onClick={() => setSelectedId(null)}
+                        className="flex items-center gap-1 mb-4 text-xs"
+                        style={{ color: PALETTE.muted }}
+                      >
+                        <Icon.Home size={12} /> Mappa generale
+                      </button>
+                      <div className="mono-font text-[11px] uppercase tracking-wide mb-1" style={{ color: PALETTE.amber }}>
+                        Sei arrivato · {selected.code}
+                      </div>
+                      <h2 className="display-font text-xl font-semibold mb-2 leading-tight">{selected.name}</h2>
+                      <div
+                        className="inline-block mono-font text-[10px] px-2 py-1 rounded mb-3"
+                        style={{ background: PALETTE.panelAlt, color: PALETTE.text }}
+                      >
+                        {selected.time}
+                      </div>
+                      <p className="text-sm font-medium mb-1">{selected.activity}</p>
+                      <p className="text-xs leading-relaxed mb-5" style={{ color: PALETTE.muted }}>
+                        {selected.desc}
+                      </p>
+
+                      <div className="rounded-xl p-3" style={{ background: PALETTE.panelAlt, border: `1px solid ${PALETTE.grid}` }}>
+                        <div className="text-[10px] mb-1" style={{ color: PALETTE.muted }}>
+                          Prossima tappa suggerita
+                        </div>
+                        {next ? (
+                          <button onClick={() => selectLocation(next.id)} className="w-full flex items-center justify-between">
+                            <div className="text-left">
+                              <div className="text-sm font-medium">{next.name}</div>
+                              <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
+                                {FLOORS[next.floor].label}
+                              </div>
+                            </div>
+                            <Icon.ArrowRight size={16} style={{ color: PALETTE.amber }} />
+                          </button>
+                        ) : (
+                          <div className="text-sm" style={{ color: PALETTE.muted }}>
+                            Percorso completato — grazie per aver partecipato!
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs mt-8" style={{ color: PALETTE.muted }}>
+          Le coordinate dei pin sulla foto sono una stima visiva mia: dimmi se qualche punto va spostato
+          (es. "S8 è più in alto") e lo correggo subito. Inviami le foto di Primo e Secondo Piano per completare l'edificio.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<WayfindingPrototype />);
+</script>
+</body>
+</html>
