@@ -355,10 +355,9 @@ function WayfindingPrototype() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [lang, setLang] = useState("it"); // "it" | "en"
 
-  // --- Fullscreen: richiede il vero schermo intero del browser sull'intero widget.
-  // Su iOS Safari questa API ha supporto limitato per elementi generici (solo <video>
-  // storicamente) — su Android Chrome e desktop funziona regolarmente.
-  const rootRef = useRef(null);
+  // --- Fullscreen: richiede il vero schermo intero del browser solo sul riquadro
+  // della mappa (piantina + pin), non su tutta la pagina. Su iOS Safari questa API
+  // ha supporto limitato per elementi generici — su Android Chrome e desktop funziona.
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -372,7 +371,7 @@ function WayfindingPrototype() {
   }, []);
 
   const toggleFullscreen = () => {
-    const el = rootRef.current;
+    const el = canvasRef.current;
     if (!el) return;
     const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
     if (!fsElement) {
@@ -757,19 +756,17 @@ function WayfindingPrototype() {
         @media (min-width: 1024px) {
           .phone-col { width: 300px; flex: 0 0 300px; }
         }
+        .map-canvas-fs:fullscreen, .map-canvas-fs:-webkit-full-screen {
+          width: 100vw !important;
+          height: 100vh !important;
+          aspect-ratio: unset !important;
+          border-radius: 0 !important;
+        }
       `}</style>
 
       <div className="max-w-5xl mx-auto px-3 py-5 md:px-4 md:py-12">
-        {/* Switch lingua + fullscreen: riga statica in alto, non più sovrapposta al contenuto */}
-        <div className="flex justify-end items-center gap-2 mb-3 md:mb-4">
-          <button
-            onClick={toggleFullscreen}
-            className="rounded-full p-2 flex items-center justify-center"
-            style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
-            title={isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
-          >
-            {isFullscreen ? <Icon.Minimize size={14} color={PALETTE.muted} /> : <Icon.Maximize size={14} color={PALETTE.muted} />}
-          </button>
+        {/* Switch lingua: riga statica in alto, non più sovrapposta al contenuto */}
+        <div className="flex justify-end mb-3 md:mb-4">
           <div
             style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
             className="rounded-full p-1 flex gap-1"
@@ -923,7 +920,7 @@ function WayfindingPrototype() {
             {/* canvas */}
             <div
               ref={canvasRef}
-              className="relative w-full rounded-2xl overflow-hidden select-none"
+              className="map-canvas-fs relative w-full rounded-2xl overflow-hidden select-none"
               style={{
                 aspectRatio: "1100 / 1174",
                 background: PALETTE.panel,
@@ -1068,6 +1065,18 @@ function WayfindingPrototype() {
                   </div>
                 );
               })}
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFullscreen();
+                }}
+                className="absolute top-2 left-2 rounded-full p-2 flex items-center justify-center"
+                style={{ background: "rgba(11,22,38,0.85)", border: `1px solid ${PALETTE.grid}`, zIndex: 25 }}
+                title={isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
+              >
+                {isFullscreen ? <Icon.Minimize size={14} color={PALETTE.amber} /> : <Icon.Maximize size={14} color={PALETTE.amber} />}
+              </button>
 
               {view.scale > 1.03 && (
                 <button
