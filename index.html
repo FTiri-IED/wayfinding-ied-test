@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   body { margin: 0; }
   .fade-in { animation: fadeSlide 0.25s ease-out; }
@@ -92,14 +93,16 @@ const PALETTE = {
   amberSoft: "#7A5A16",
   text: "#EDEFF2",
   muted: "#8FA0B8",
+  highlight: "#FF4D4D",
+  highlightSoft: "#7A1F1F",
 };
 
 const FLOOR0_IMG = "https://www.ied.it/_default_upload_bucket/foto-mappa-piano-terra-sciesa.png";
 
 const FLOORS = [
-  { id: 0, label: "Piano Terra", code: "PT", hasPhoto: true },
-  { id: 1, label: "Primo Piano", code: "P1", hasPhoto: false },
-  { id: 2, label: "Secondo Piano", code: "P2", hasPhoto: false },
+  { id: 0, label: "Piano Terra", labelEn: "Ground Floor", code: "PT", hasPhoto: true },
+  { id: 1, label: "Primo Piano", labelEn: "First Floor", code: "P1", hasPhoto: false },
+  { id: 2, label: "Secondo Piano", labelEn: "Second Floor", code: "P2", hasPhoto: false },
 ];
 
 // Coordinate stimate sulla foto reale della planimetria del piano terra
@@ -108,166 +111,211 @@ const LOCATIONS = [
     id: "reception",
     code: "PT-REC",
     name: "Reception",
+    nameEn: "Reception",
     floor: 0,
     x: 40,
     y: 83,
     time: "09:00 – 09:30",
     activity: "Accoglienza e registrazione badge",
+    activityEn: "Welcome and badge registration",
     desc: "Il punto di partenza del percorso. Qui ritiri il badge e la mappa cartacea dei laboratori.",
+    descEn: "The starting point of the journey. Pick up your badge and the printed map here.",
   },
   {
     id: "ufficio-comunicazione",
     code: "PT-COM",
     name: "Ufficio Comunicazione",
+    nameEn: "Communication Office",
     floor: 0,
     x: 54,
     y: 83,
     time: "09:00 – 13:00",
     activity: "Punto informazioni su comunicazione ed eventi",
+    activityEn: "Information point for communication and events",
     desc: "Adiacente alla reception, sulla destra: qui trovi il team comunicazione dell'edificio.",
+    descEn: "Next to reception, on the right: this is where you'll find the building's communication team.",
   },
   {
     id: "arti-visive-2",
     code: "PT-AV2",
     name: "Ufficio Arti Visive 2",
+    nameEn: "Visual Arts Office 2",
     floor: 0,
     x: 10,
     y: 30,
     time: "09:00 – 13:00",
     activity: "Spazio docenti area artistica",
+    activityEn: "Faculty space, visual arts area",
     desc: "Ufficio dei docenti di arti visive, sul lato ovest dell'edificio verso il cortile.",
+    descEn: "Visual arts faculty office, on the west side of the building facing the courtyard.",
   },
   {
     id: "arti-visive-1",
     code: "PT-AV1",
     name: "Ufficio Arti Visive 1",
+    nameEn: "Visual Arts Office 1",
     floor: 0,
     x: 10,
     y: 42,
     time: "09:00 – 13:00",
     activity: "Spazio docenti area artistica",
+    activityEn: "Faculty space, visual arts area",
     desc: "Secondo ufficio dei docenti di arti visive, adiacente al primo.",
+    descEn: "Second visual arts faculty office, next to the first one.",
   },
   {
     id: "segreteria",
     code: "PT-SEG",
     name: "Segreteria Didattica",
+    nameEn: "Student Office",
     floor: 0,
     x: 10,
     y: 68,
     time: "09:00 – 13:00",
     activity: "Punto informazioni e segreteria",
+    activityEn: "Information and administration point",
     desc: "Per qualsiasi dubbio organizzativo durante la giornata, la segreteria è qui.",
+    descEn: "For any organisational question during the day, the student office is here.",
   },
   {
     id: "aula-magna",
     code: "PT-S10",
     name: "S10 · Aula Magna",
+    nameEn: "S10 · Main Hall",
     floor: 0,
     x: 42,
     y: 15,
     time: "09:45 – 10:30",
     activity: "Apertura e presentazione della giornata",
+    activityEn: "Opening and presentation of the day",
     desc: "Introduzione ai laboratori e alle attività della giornata, con tutti i partecipanti.",
+    descEn: "Introduction to the day's workshops and activities, with all participants.",
   },
   {
     id: "aula-s9",
     code: "PT-S9",
     name: "S9 · Aula",
+    nameEn: "S9 · Classroom",
     floor: 0,
     x: 64,
     y: 10,
     time: "09:45 – 10:30",
     activity: "Sessione introduttiva parallela",
+    activityEn: "Parallel introductory session",
     desc: "Seconda aula per l'introduzione, per chi non trova posto in Aula Magna.",
+    descEn: "Second classroom for the introduction, for those who don't find a seat in the Main Hall.",
   },
   {
     id: "lab-s8",
     code: "PT-S8",
     name: "S8 · Lab. Informatica",
+    nameEn: "S8 · Computer Lab",
     floor: 0,
     x: 87,
     y: 21,
     time: "10:45 – 12:00",
     activity: "Laboratorio di coding",
+    activityEn: "Coding workshop",
     desc: "Si creano piccoli progetti di programmazione a blocchi e si condividono con il gruppo.",
+    descEn: "Small block-based programming projects are created and shared with the group.",
   },
   {
     id: "lab-s4",
     code: "PT-S4",
     name: "S4 · Laboratorio",
+    nameEn: "S4 · Workshop Room",
     floor: 0,
     x: 42,
     y: 40,
     time: "10:45 – 12:00",
     activity: "Laboratorio scientifico",
+    activityEn: "Science workshop",
     desc: "Piccoli esperimenti pratici a tema scienze, in una delle sale più raccolte dell'edificio.",
+    descEn: "Small hands-on science experiments, in one of the building's cosier rooms.",
   },
   {
     id: "lab-s5",
     code: "PT-S5",
     name: "S5 · Lab. Informatica",
+    nameEn: "S5 · Computer Lab",
     floor: 0,
     x: 65,
     y: 45,
     time: "10:45 – 12:00",
     activity: "Laboratorio di grafica digitale",
+    activityEn: "Digital graphics workshop",
     desc: "Si sperimenta con strumenti di disegno e grafica digitale su computer.",
+    descEn: "Hands-on experimenting with digital drawing and graphics tools on computer.",
   },
   {
     id: "lab-s3",
     code: "PT-S3",
     name: "S3 · Lab. Informatica",
+    nameEn: "S3 · Computer Lab",
     floor: 0,
     x: 42,
     y: 54,
     time: "10:45 – 12:00",
     activity: "Laboratorio di robotica educativa",
+    activityEn: "Educational robotics workshop",
     desc: "Si assembla un piccolo robot e lo si programma per seguire un percorso semplice.",
+    descEn: "A small robot is assembled and programmed to follow a simple path.",
   },
   {
     id: "lab-s6",
     code: "PT-S6",
     name: "S6 · Lab. Informatica",
+    nameEn: "S6 · Computer Lab",
     floor: 0,
     x: 78,
     y: 40,
     time: "10:45 – 12:00",
     activity: "Laboratorio di suono e musica digitale",
+    activityEn: "Sound and digital music workshop",
     desc: "Si registrano e montano brevi tracce audio con strumenti digitali di base.",
+    descEn: "Short audio tracks are recorded and edited using basic digital tools.",
   },
   {
     id: "lab-s7",
     code: "PT-S7",
     name: "S7 · Lab. Informatica",
+    nameEn: "S7 · Computer Lab",
     floor: 0,
     x: 88,
     y: 50,
     time: "10:45 – 12:00",
     activity: "Laboratorio di editing video",
+    activityEn: "Video editing workshop",
     desc: "Si montano brevi clip video girate durante la giornata con software semplici.",
+    descEn: "Short video clips filmed during the day are edited using simple software.",
   },
   {
     id: "lab-s2",
     code: "PT-S2",
     name: "S2 · Lab. Informatica",
+    nameEn: "S2 · Computer Lab",
     floor: 0,
     x: 42,
     y: 62,
     time: "10:45 – 12:00",
     activity: "Laboratorio di animazione digitale",
+    activityEn: "Digital animation workshop",
     desc: "Si creano brevi animazioni frame-by-frame con strumenti digitali di base.",
+    descEn: "Short frame-by-frame animations are created using basic digital tools.",
   },
   {
     id: "lab-s1",
     code: "PT-S1",
     name: "S1 · Lab. Informatica",
+    nameEn: "S1 · Computer Lab",
     floor: 0,
     x: 42,
     y: 70,
     time: "10:45 – 12:00",
     activity: "Laboratorio making e stampa 3D",
+    activityEn: "Making and 3D printing workshop",
     desc: "Si progetta un piccolo oggetto e lo si vede prendere forma sulla stampante 3D.",
+    descEn: "A small object is designed and watched taking shape on the 3D printer.",
   },
 ];
 
@@ -309,10 +357,198 @@ function WayfindingPrototype() {
   const [selectedStairDirection, setSelectedStairDirection] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [lang, setLang] = useState("it"); // "it" | "en"
+
+  // --- Parametro "show-only" nell'URL dell'iframe: es. ?show-only=PT-S1,PT-S3,PT-REC
+  // Filtra quali AULE mostrare sulla mappa. Le scale non sono mai filtrate.
+  // Se il parametro non è presente, si mostrano tutte le aule (comportamento di default).
+  const [showOnlyCodes] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("show-only");
+      if (!raw) return null;
+      return raw
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean);
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // --- Parametro "data-url" nell'URL dell'iframe: es. ?data-url=https://tuosito.it/dati-aule.xlsx
+  // Carica un file Excel e sovrascrive nome/attività/orario/descrizione delle aule,
+  // associando ogni riga a un pin tramite la colonna "Codice" (deve combaciare col codice del pin, es. PT-S3).
+  // Posizione, piano e codice dei pin restano SEMPRE quelli definiti nel codice: l'Excel
+  // controlla solo il contenuto testuale, non la geometria della mappa.
+  const [externalData, setExternalData] = useState(null);
+  const [dataStatus, setDataStatus] = useState("idle"); // idle | loading | loaded | error
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams(window.location.search);
+    const dataUrl = params.get("data-url");
+    if (!dataUrl) return;
+    if (typeof window.XLSX === "undefined") {
+      setDataStatus("error");
+      return;
+    }
+    setDataStatus("loading");
+    fetch(dataUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.arrayBuffer();
+      })
+      .then((buf) => {
+        const wb = window.XLSX.read(buf, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = window.XLSX.utils.sheet_to_json(sheet);
+        const map = {};
+        rows.forEach((row) => {
+          const code = String(row.Codice || row.codice || row.Code || row.code || "")
+            .trim()
+            .toUpperCase();
+          if (code) map[code] = row;
+        });
+        if (!cancelled) {
+          setExternalData(map);
+          setDataStatus("loaded");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDataStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // --- Parametro "goto" nell'URL dell'iframe: es. ?goto=PT-S3
+  // Seleziona automaticamente quella stanza all'apertura della pagina
+  // (utile per i QR code fisici che devono portare dritti a una stanza specifica).
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const goto = params.get("goto");
+      if (!goto) return;
+      const code = goto.trim().toUpperCase();
+      if (showOnlyCodes && !showOnlyCodes.includes(code)) return;
+      const loc = LOCATIONS.find((l) => l.code.toUpperCase() === code);
+      if (!loc) return;
+      setFloor(loc.floor);
+      setSelectedId(loc.id);
+    } catch (e) {
+      // parametro assente o URL non valido: nessun problema, si resta sulla vista di default
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const truthy = (v) => {
+    if (v === undefined || v === null) return false;
+    const s = String(v).trim().toLowerCase();
+    return ["si", "sì", "yes", "true", "1", "x"].includes(s);
+  };
+
+  const UI = {
+    it: {
+      kicker: "Prototipo · Pianta reale, Via Sciesa 4",
+      title: "Stessa mappa, ora con la vostra planimetria",
+      intro:
+        "La piantina del Piano Terra è la foto che mi hai inviato. I pin sono posizionati sopra, alle coordinate stimate di ciascuna stanza. Primo e Secondo Piano restano segnaposto in attesa delle rispettive foto.",
+      dataLoading: "Aggiornamento dati delle aule in corso…",
+      dataError: "Non sono riuscito a caricare i dati aggiornati — mostro i contenuti di default.",
+      searchPlaceholder: "Cerca un'aula per nome o codice (es. S3, Reception)",
+      noResults: "Nessuna aula trovata.",
+      scrollHint: "← Scorri con il dito per vedere tutta la piantina",
+      noPhoto: (floorLabel) =>
+        `Nessuna foto caricata per il ${floorLabel.toLowerCase()}.\nInvia la planimetria di questo piano per attivare i punti qui sopra.`,
+      overlayTouch: "Tocca per interagire con la mappa",
+      hintActive: "Pizzica per ingrandire — i pin restano della stessa dimensione e seguono la posizione corretta.",
+      hintOverlayShown: "Tocca ancora per attivare zoom e trascinamento.",
+      hintIdle: "Tocca la mappa per iniziare.",
+      resetZoom: "Reset zoom",
+      waitingScan: "In attesa di scansione",
+      waitingScanDesc: "Inquadra il QR appeso alla porta di una stanza, oppure scegli qui sotto.",
+      noRoomsFloor: "Nessuna stanza ancora configurata su questo piano.",
+      backToMap: "Mappa generale",
+      arrivedAt: "Sei arrivato ·",
+      nextStop: "Prossima tappa suggerita",
+      routeDone: "Percorso completato — grazie per aver partecipato!",
+      arrivedVia: (stairLabel, direction, floorLabel) =>
+        `Sei ${direction === -1 ? "sceso" : "salito"} da ${stairLabel} — ora sei al ${floorLabel.toLowerCase()}.`,
+    },
+    en: {
+      kicker: "Prototype · Real floor plan, Via Sciesa 4",
+      title: "Same map, now with your floor plan",
+      intro:
+        "The Ground Floor plan is the photo you sent me. Pins are placed on it, at each room's estimated coordinates. First and Second Floor remain placeholders until their photos arrive.",
+      dataLoading: "Updating room data…",
+      dataError: "Couldn't load the updated data — showing default content.",
+      searchPlaceholder: "Search a room by name or code (e.g. S3, Reception)",
+      noResults: "No room found.",
+      scrollHint: "← Swipe to see the whole floor plan",
+      noPhoto: (floorLabel) =>
+        `No photo uploaded yet for the ${floorLabel.toLowerCase()}.\nSend this floor's plan to activate the pins above.`,
+      overlayTouch: "Tap to interact with the map",
+      hintActive: "Pinch to zoom — pins stay the same size and follow the correct position.",
+      hintOverlayShown: "Tap again to enable zoom and panning.",
+      hintIdle: "Tap the map to get started.",
+      resetZoom: "Reset zoom",
+      waitingScan: "Waiting for scan",
+      waitingScanDesc: "Scan the QR code on a room's door, or choose one below.",
+      noRoomsFloor: "No rooms configured on this floor yet.",
+      backToMap: "Back to map",
+      arrivedAt: "You've arrived ·",
+      nextStop: "Suggested next stop",
+      routeDone: "Route completed — thanks for taking part!",
+      arrivedVia: (stairLabel, direction, floorLabel) =>
+        `You went ${direction === -1 ? "down" : "up"} via ${stairLabel} — you're now on the ${floorLabel.toLowerCase()}.`,
+    },
+  };
+  const t = UI[lang];
+  const fl = (floorObj) => (lang === "en" ? floorObj.labelEn : floorObj.label);
+
+  const mergeExternal = (loc) => {
+    const ext = externalData && externalData[loc.code.toUpperCase()];
+    const useEn = lang === "en";
+
+    const name = useEn
+      ? (ext && (ext.Nome_EN || ext.nome_en)) || loc.nameEn || (ext && (ext.Nome || ext.nome)) || loc.name
+      : (ext && (ext.Nome || ext.nome)) || loc.name;
+
+    const activity = useEn
+      ? (ext && (ext["Attività_EN"] || ext["Attivita_EN"] || ext.attivita_en)) ||
+        loc.activityEn ||
+        (ext && (ext.Attività || ext.Attivita)) ||
+        loc.activity
+      : (ext && (ext.Attività || ext.Attivita || ext.attività || ext.attivita)) || loc.activity;
+
+    const desc = useEn
+      ? (ext && (ext.Descrizione_EN || ext.descrizione_en)) || loc.descEn || (ext && ext.Descrizione) || loc.desc
+      : (ext && (ext.Descrizione || ext.descrizione)) || loc.desc;
+
+    const time = (ext && (ext.Orario || ext.orario)) || loc.time;
+
+    return {
+      ...loc,
+      name,
+      activity,
+      time,
+      desc,
+      highlighted: ext ? truthy(ext.Evidenziato || ext.evidenziato || ext.Highlighted || ext.highlighted) : false,
+    };
+  };
+
+  const VISIBLE_LOCATIONS = (showOnlyCodes
+    ? LOCATIONS.filter((l) => showOnlyCodes.includes(l.code.toUpperCase()))
+    : LOCATIONS
+  ).map(mergeExternal);
+
+  const VISIBLE_ORDER = ORDER.filter((id) => VISIBLE_LOCATIONS.some((l) => l.id === id));
 
   const searchResults =
     searchQuery.trim().length > 0
-      ? LOCATIONS.filter(
+      ? VISIBLE_LOCATIONS.filter(
           (l) =>
             l.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
             l.code.toLowerCase().includes(searchQuery.trim().toLowerCase())
@@ -433,7 +669,7 @@ function WayfindingPrototype() {
   };
 
   const selectLocation = (id) => {
-    const loc = LOCATIONS.find((l) => l.id === id);
+    const loc = VISIBLE_LOCATIONS.find((l) => l.id === id);
     if (!loc) return;
     setFloor(loc.floor);
     setSelectedId(id);
@@ -448,12 +684,12 @@ function WayfindingPrototype() {
     setSelectedId(null);
   };
 
-  const selected = LOCATIONS.find((l) => l.id === selectedId) || null;
-  const nextId = selected ? ORDER[ORDER.indexOf(selected.id) + 1] : null;
-  const next = nextId ? LOCATIONS.find((l) => l.id === nextId) : null;
+  const selected = VISIBLE_LOCATIONS.find((l) => l.id === selectedId) || null;
+  const nextId = selected ? VISIBLE_ORDER[VISIBLE_ORDER.indexOf(selected.id) + 1] : null;
+  const next = nextId ? VISIBLE_LOCATIONS.find((l) => l.id === nextId) : null;
 
   const currentFloor = FLOORS.find((f) => f.id === floor);
-  const pinsOnFloor = LOCATIONS.filter((l) => l.floor === floor);
+  const pinsOnFloor = VISIBLE_LOCATIONS.filter((l) => l.floor === floor);
 
   return (
     <div
@@ -470,25 +706,56 @@ function WayfindingPrototype() {
         ::-webkit-scrollbar-thumb { background: ${PALETTE.grid}; border-radius: 4px; }
       `}</style>
 
+      <div
+        style={{ position: "fixed", top: 12, right: 12, zIndex: 60, background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
+        className="rounded-full p-1 flex gap-1"
+      >
+        <button
+          onClick={() => setLang("it")}
+          className="mono-font text-[10px] px-2.5 py-1 rounded-full"
+          style={{ background: lang === "it" ? PALETTE.amber : "transparent", color: lang === "it" ? "#1a1200" : PALETTE.muted }}
+        >
+          ITA
+        </button>
+        <button
+          onClick={() => setLang("en")}
+          className="mono-font text-[10px] px-2.5 py-1 rounded-full"
+          style={{ background: lang === "en" ? PALETTE.amber : "transparent", color: lang === "en" ? "#1a1200" : PALETTE.muted }}
+        >
+          ENG
+        </button>
+      </div>
+
       <div className="max-w-5xl mx-auto px-3 py-5 md:px-4 md:py-12">
         {/* Header */}
         <div className="mb-5 md:mb-8">
           <div className="flex items-center gap-2 mb-2 md:mb-3" style={{ color: PALETTE.amber }}>
             <Icon.ScanLine size={16} />
-            <span className="mono-font text-[10px] md:text-xs tracking-widest uppercase">Prototipo · Pianta reale, Via Sciesa 4</span>
+            <span className="mono-font text-[10px] md:text-xs tracking-widest uppercase">{t.kicker}</span>
           </div>
           <h1 className="display-font text-2xl md:text-4xl font-semibold mb-2 md:mb-3 leading-tight">
-            Stessa mappa, ora con la vostra planimetria
+            {t.title}
           </h1>
           <p style={{ color: PALETTE.muted }} className="max-w-2xl leading-relaxed text-sm md:text-base">
-            La piantina del Piano Terra è la foto che mi hai inviato. I pin sono posizionati sopra, alle coordinate
-            stimate di ciascuna stanza. Primo e Secondo Piano restano segnaposto in attesa delle rispettive foto.
+            {t.intro}
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-5 md:gap-6 items-start">
           {/* MAP PANEL */}
           <div className="w-full lg:flex-1">
+            {/* Stato caricamento dati da Excel esterno, se richiesto via ?data-url= */}
+            {dataStatus === "loading" && (
+              <p className="text-[11px] mb-2" style={{ color: PALETTE.muted }}>
+                {t.dataLoading}
+              </p>
+            )}
+            {dataStatus === "error" && (
+              <p className="text-[11px] mb-2" style={{ color: "#E8A34A" }}>
+                {t.dataError}
+              </p>
+            )}
+
             {/* Ricerca aule con autocompletamento */}
             <div className="relative mb-4">
               <div
@@ -513,7 +780,7 @@ function WayfindingPrototype() {
                       setSearchOpen(false);
                     }
                   }}
-                  placeholder="Cerca un'aula per nome o codice (es. S3, Reception)"
+                  placeholder={t.searchPlaceholder}
                   className="flex-1 bg-transparent outline-none text-sm"
                   style={{ color: PALETTE.text }}
                 />
@@ -549,7 +816,7 @@ function WayfindingPrototype() {
                         <div>
                           <div className="text-sm font-medium">{loc.name}</div>
                           <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
-                            {loc.code} · {FLOORS[loc.floor].label}
+                            {loc.code} · {fl(FLOORS[loc.floor])}
                           </div>
                         </div>
                         <Icon.MapPin size={14} color={PALETTE.amber} />
@@ -557,7 +824,7 @@ function WayfindingPrototype() {
                     ))
                   ) : (
                     <div className="px-3 py-2.5 text-sm" style={{ color: PALETTE.muted }}>
-                      Nessuna aula trovata.
+                      {t.noResults}
                     </div>
                   )}
                 </div>
@@ -583,7 +850,7 @@ function WayfindingPrototype() {
                 >
                   <span className="display-font font-semibold text-sm">{f.code}</span>
                   <span className="text-[11px]" style={{ opacity: 0.85 }}>
-                    {f.label}
+                    {fl(f)}
                   </span>
                 </button>
               ))}
@@ -616,16 +883,15 @@ function WayfindingPrototype() {
                   backgroundPosition: "center",
                   transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
                   transformOrigin: "0 0",
+                  willChange: "transform",
                 }}
               />
 
               {!currentFloor.hasPhoto && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
                   <Icon.ImageOff size={28} style={{ color: PALETTE.muted }} />
-                  <p className="text-sm" style={{ color: PALETTE.muted }}>
-                    Nessuna foto caricata per il {currentFloor.label.toLowerCase()}.
-                    <br />
-                    Invia la planimetria di questo piano per attivare i punti qui sopra.
+                  <p className="text-sm whitespace-pre-line" style={{ color: PALETTE.muted }}>
+                    {t.noPhoto(fl(currentFloor))}
                   </p>
                 </div>
               )}
@@ -648,6 +914,9 @@ function WayfindingPrototype() {
                 const isActive = selectedId === loc.id;
                 const anySelected = selectedId !== null;
                 const size = isActive ? 30 : anySelected ? 16 : 30;
+                const pinColor = loc.highlighted ? PALETTE.highlight : PALETTE.amber;
+                const pinColorSoft = loc.highlighted ? PALETTE.highlightSoft : PALETTE.amberSoft;
+                const activeTextColor = loc.highlighted ? "#2a0a0a" : "#1a1200";
                 return (
                   <button
                     key={loc.id}
@@ -655,29 +924,29 @@ function WayfindingPrototype() {
                       e.stopPropagation();
                       selectLocation(loc.id);
                     }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group p-1.5 transition-all"
-                    style={{ left: p.x, top: p.y }}
+                    className="absolute top-0 left-0 flex flex-col items-center group p-1.5 transition-all"
+                    style={{ transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform" }}
                   >
                     <div
                       className="rounded-full flex items-center justify-center transition-all group-hover:scale-110"
                       style={{
                         width: size,
                         height: size,
-                        background: isActive ? PALETTE.amber : "#0B1626",
-                        border: `2px solid ${PALETTE.amber}`,
-                        boxShadow: isActive ? `0 0 0 6px ${PALETTE.amberSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
+                        background: isActive ? pinColor : "#0B1626",
+                        border: `2px solid ${pinColor}`,
+                        boxShadow: isActive ? `0 0 0 6px ${pinColorSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
                         opacity: !isActive && anySelected ? 0.7 : 1,
                       }}
                     >
                       {(isActive || !anySelected) && (
-                        <Icon.MapPin size={14} color={isActive ? "#1a1200" : PALETTE.amber} />
+                        <Icon.MapPin size={14} color={isActive ? activeTextColor : pinColor} />
                       )}
                     </div>
                     <span
                       className="mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded transition-opacity"
                       style={{
                         background: "#0B1626",
-                        color: PALETTE.amber,
+                        color: pinColor,
                         opacity: !isActive && anySelected ? 0.55 : 1,
                       }}
                     >
@@ -692,8 +961,8 @@ function WayfindingPrototype() {
                 return (
                   <div
                     key={s.id}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
-                    style={{ left: p.x, top: p.y }}
+                    className="absolute top-0 left-0 flex flex-col items-center"
+                    style={{ transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform" }}
                   >
                     <div className="flex items-center gap-1">
                       {directions.map((direction) => {
@@ -714,7 +983,7 @@ function WayfindingPrototype() {
                               border: "2px solid #3DDC97",
                               boxShadow: isActive ? "0 0 0 6px #164B36" : "0 1px 6px rgba(0,0,0,0.5)",
                             }}
-                            title={`${s.label} → ${FLOORS[targetFloor].label}`}
+                            title={`${s.label} → ${fl(FLOORS[targetFloor])}`}
                           >
                             {direction === 1 ? (
                               <Icon.ArrowUpCircle size={15} color={isActive ? "#0B1626" : "#3DDC97"} />
@@ -741,7 +1010,7 @@ function WayfindingPrototype() {
                   className="absolute top-2 right-2 mono-font text-[10px] px-2.5 py-1.5 rounded-full"
                   style={{ background: "rgba(11,22,38,0.85)", color: PALETTE.amber, border: `1px solid ${PALETTE.amber}` }}
                 >
-                  Reset zoom
+                  {t.resetZoom}
                 </button>
               )}
 
@@ -763,17 +1032,13 @@ function WayfindingPrototype() {
                     style={{ background: "rgba(11,22,38,0.9)", color: PALETTE.text, border: `1px solid ${PALETTE.amber}` }}
                   >
                     <Icon.MapPin size={13} color={PALETTE.amber} />
-                    Tocca per interagire con la mappa
+                    {t.overlayTouch}
                   </span>
                 </button>
               )}
             </div>
             <p className="text-[11px] mt-1.5" style={{ color: PALETTE.muted }}>
-              {mapActive
-                ? "Pizzica per ingrandire — i pin restano della stessa dimensione e seguono la posizione corretta."
-                : overlayShown
-                ? "Tocca ancora per attivare zoom e trascinamento."
-                : "Tocca la mappa per iniziare."}
+              {mapActive ? t.hintActive : overlayShown ? t.hintOverlayShown : t.hintIdle}
             </p>
           </div>
 
@@ -793,7 +1058,7 @@ function WayfindingPrototype() {
                       <div className="flex items-center gap-2 mb-4" style={{ color: PALETTE.amber }}>
                         <Icon.Building2 size={16} />
                         <span className="mono-font text-[11px] uppercase tracking-wide">
-                          Via Sciesa 4 · {currentFloor.label}
+                          Via Sciesa 4 · {fl(currentFloor)}
                         </span>
                       </div>
                       {selectedStairId ? (
@@ -807,21 +1072,19 @@ function WayfindingPrototype() {
                             <Icon.ArrowUpCircle size={16} color="#3DDC97" />
                           )}
                           <span className="text-xs" style={{ color: "#8FE8C8" }}>
-                            Sei {selectedStairDirection === -1 ? "sceso" : "salito"} da{" "}
-                            {STAIRS.find((s) => s.id === selectedStairId)?.label} — ora sei al{" "}
-                            {currentFloor.label.toLowerCase()}.
+                            {t.arrivedVia(STAIRS.find((s) => s.id === selectedStairId)?.label, selectedStairDirection, fl(currentFloor))}
                           </span>
                         </div>
                       ) : (
                         <>
-                          <h2 className="display-font text-lg font-semibold mb-1">In attesa di scansione</h2>
+                          <h2 className="display-font text-lg font-semibold mb-1">{t.waitingScan}</h2>
                           <p className="text-xs mb-4" style={{ color: PALETTE.muted }}>
-                            Inquadra il QR appeso alla porta di una stanza, oppure scegli qui sotto.
+                            {t.waitingScanDesc}
                           </p>
                         </>
                       )}
                       <div className="flex flex-col gap-2">
-                        {LOCATIONS.filter((l) => l.floor === floor).map((loc) => (
+                        {pinsOnFloor.map((loc) => (
                           <button
                             key={loc.id}
                             onClick={() => selectLocation(loc.id)}
@@ -837,9 +1100,9 @@ function WayfindingPrototype() {
                             <Icon.ArrowRight size={14} style={{ color: PALETTE.amber }} />
                           </button>
                         ))}
-                        {LOCATIONS.filter((l) => l.floor === floor).length === 0 && (
+                        {pinsOnFloor.length === 0 && (
                           <p className="text-xs" style={{ color: PALETTE.muted }}>
-                            Nessuna stanza ancora configurata su questo piano.
+                            {t.noRoomsFloor}
                           </p>
                         )}
                       </div>
@@ -851,10 +1114,10 @@ function WayfindingPrototype() {
                         className="flex items-center gap-1 mb-4 text-xs"
                         style={{ color: PALETTE.muted }}
                       >
-                        <Icon.Home size={12} /> Mappa generale
+                        <Icon.Home size={12} /> {t.backToMap}
                       </button>
                       <div className="mono-font text-[11px] uppercase tracking-wide mb-1" style={{ color: PALETTE.amber }}>
-                        Sei arrivato · {selected.code}
+                        {t.arrivedAt} {selected.code}
                       </div>
                       <h2 className="display-font text-xl font-semibold mb-2 leading-tight">{selected.name}</h2>
                       <div
@@ -870,21 +1133,21 @@ function WayfindingPrototype() {
 
                       <div className="rounded-xl p-3" style={{ background: PALETTE.panelAlt, border: `1px solid ${PALETTE.grid}` }}>
                         <div className="text-[10px] mb-1" style={{ color: PALETTE.muted }}>
-                          Prossima tappa suggerita
+                          {t.nextStop}
                         </div>
                         {next ? (
                           <button onClick={() => selectLocation(next.id)} className="w-full flex items-center justify-between">
                             <div className="text-left">
                               <div className="text-sm font-medium">{next.name}</div>
                               <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
-                                {FLOORS[next.floor].label}
+                                {fl(FLOORS[next.floor])}
                               </div>
                             </div>
                             <Icon.ArrowRight size={16} style={{ color: PALETTE.amber }} />
                           </button>
                         ) : (
                           <div className="text-sm" style={{ color: PALETTE.muted }}>
-                            Percorso completato — grazie per aver partecipato!
+                            {t.routeDone}
                           </div>
                         )}
                       </div>
