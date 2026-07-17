@@ -355,34 +355,6 @@ function WayfindingPrototype() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [lang, setLang] = useState("it"); // "it" | "en"
 
-  // --- Fullscreen: richiede il vero schermo intero del browser solo sul riquadro
-  // della mappa (piantina + pin), non su tutta la pagina. Su iOS Safari questa API
-  // ha supporto limitato per elementi generici — su Android Chrome e desktop funziona.
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
-    document.addEventListener("fullscreenchange", onChange);
-    document.addEventListener("webkitfullscreenchange", onChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", onChange);
-      document.removeEventListener("webkitfullscreenchange", onChange);
-    };
-  }, []);
-
-  const toggleFullscreen = () => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
-    if (!fsElement) {
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen();
-      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }
-  };
-
   // --- Parametro "show-only" nell'URL dell'iframe: es. ?show-only=PT-S1,PT-S3,PT-REC
   // Filtra quali AULE mostrare sulla mappa. Le scale non sono mai filtrate.
   // Se il parametro non è presente, si mostrano tutte le aule (comportamento di default).
@@ -480,10 +452,10 @@ function WayfindingPrototype() {
 
   const UI = {
     it: {
-      kicker: "Prototipo · Pianta reale, Via Sciesa 4",
-      title: "Stessa mappa, ora con la vostra planimetria",
+      kicker: "Sede IED Milano - Via Amatore Sciesa 4",
+      title: "IED Milano - sede di via Sciesa",
       intro:
-        "La piantina del Piano Terra è la foto che mi hai inviato. I pin sono posizionati sopra, alle coordinate stimate di ciascuna stanza. Primo e Secondo Piano restano segnaposto in attesa delle rispettive foto.",
+        "Questa pagina ti aiuta a raggiungere l'aula che ti interessa. Cerca una stanza, tocca un pin sulla mappa o scegli dall'elenco qui sotto per vedere orari e indicazioni.",
       dataLoading: "Aggiornamento dati delle aule in corso…",
       dataError: "Non sono riuscito a caricare i dati aggiornati — mostro i contenuti di default.",
       searchPlaceholder: "Cerca un'aula per nome o codice (es. S3, Reception)",
@@ -494,10 +466,10 @@ function WayfindingPrototype() {
       overlayTouch: "Tocca per interagire con la mappa",
       hintActive: "Pizzica per ingrandire — i pin restano della stessa dimensione e seguono la posizione corretta.",
       hintOverlayShown: "Tocca ancora per attivare zoom e trascinamento.",
-      hintIdle: "Tocca la mappa per iniziare.",
+      hintIdle: "",
       resetZoom: "Reset zoom",
-      waitingScan: "In attesa di scansione",
-      waitingScanDesc: "Inquadra il QR appeso alla porta di una stanza, oppure scegli qui sotto.",
+      waitingScan: "Scegli una posizione",
+      waitingScanDesc: "Usa la ricerca qui sopra, tocca un pin sulla mappa, oppure scegli una stanza dall'elenco qui sotto.",
       noRoomsFloor: "Nessuna stanza ancora configurata su questo piano.",
       backToMap: "Mappa generale",
       nextStop: "Prossima tappa suggerita",
@@ -506,10 +478,10 @@ function WayfindingPrototype() {
         `Sei ${direction === -1 ? "sceso" : "salito"} da ${stairLabel} — ora sei al ${floorLabel.toLowerCase()}.`,
     },
     en: {
-      kicker: "Prototype · Real floor plan, Via Sciesa 4",
-      title: "Same map, now with your floor plan",
+      kicker: "IED Milano Campus - Via Amatore Sciesa 4",
+      title: "IED Milano - Via Sciesa Campus",
       intro:
-        "The Ground Floor plan is the photo you sent me. Pins are placed on it, at each room's estimated coordinates. First and Second Floor remain placeholders until their photos arrive.",
+        "This page helps you find your way to the room you're looking for. Search for a room, tap a pin on the map, or pick one from the list below to see times and directions.",
       dataLoading: "Updating room data…",
       dataError: "Couldn't load the updated data — showing default content.",
       searchPlaceholder: "Search a room by name or code (e.g. S3, Reception)",
@@ -520,10 +492,10 @@ function WayfindingPrototype() {
       overlayTouch: "Tap to interact with the map",
       hintActive: "Pinch to zoom — pins stay the same size and follow the correct position.",
       hintOverlayShown: "Tap again to enable zoom and panning.",
-      hintIdle: "Tap the map to get started.",
+      hintIdle: "",
       resetZoom: "Reset zoom",
-      waitingScan: "Waiting for scan",
-      waitingScanDesc: "Scan the QR code on a room's door, or choose one below.",
+      waitingScan: "Choose a location",
+      waitingScanDesc: "Use the search above, tap a pin on the map, or pick a room from the list below.",
       noRoomsFloor: "No rooms configured on this floor yet.",
       backToMap: "Back to map",
       nextStop: "Suggested next stop",
@@ -755,17 +727,16 @@ function WayfindingPrototype() {
         @media (min-width: 1024px) {
           .phone-col { width: 300px; flex: 0 0 300px; }
         }
-        .map-canvas-fs:fullscreen, .map-canvas-fs:-webkit-full-screen {
-          width: 100vw !important;
-          height: 100vh !important;
-          aspect-ratio: unset !important;
-          border-radius: 0 !important;
-        }
       `}</style>
 
       <div className="max-w-5xl mx-auto px-3 py-5 md:px-4 md:py-12">
-        {/* Switch lingua: riga statica in alto, non più sovrapposta al contenuto */}
-        <div className="flex justify-end mb-3 md:mb-4">
+        {/* Logo + switch lingua: riga statica in alto, non più sovrapposta al contenuto */}
+        <div className="flex justify-between items-center mb-3 md:mb-4">
+          <img
+            src="https://www.ied.it/logos/2025/IED-Logo-Red-new.png"
+            alt="IED"
+            style={{ height: 28 }}
+          />
           <div
             style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
             className="rounded-full p-1 flex gap-1"
@@ -919,7 +890,7 @@ function WayfindingPrototype() {
             {/* canvas */}
             <div
               ref={canvasRef}
-              className="map-canvas-fs relative w-full rounded-2xl overflow-hidden select-none"
+              className="relative w-full rounded-2xl overflow-hidden select-none"
               style={{
                 aspectRatio: "1100 / 1174",
                 background: PALETTE.panel,
@@ -1065,18 +1036,6 @@ function WayfindingPrototype() {
                 );
               })}
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFullscreen();
-                }}
-                className="absolute top-2 left-2 rounded-full p-2 flex items-center justify-center"
-                style={{ background: "rgba(11,22,38,0.85)", border: `1px solid ${PALETTE.grid}`, zIndex: 25 }}
-                title={isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
-              >
-                {isFullscreen ? <Icon.Minimize size={14} color={PALETTE.amber} /> : <Icon.Maximize size={14} color={PALETTE.amber} />}
-              </button>
-
               {view.scale > 1.03 && (
                 <button
                   onClick={resetZoom}
@@ -1110,9 +1069,11 @@ function WayfindingPrototype() {
                 </button>
               )}
             </div>
-            <p className="text-[11px] mt-1.5" style={{ color: PALETTE.muted }}>
-              {mapActive ? t.hintActive : overlayShown ? t.hintOverlayShown : t.hintIdle}
-            </p>
+            {(mapActive ? t.hintActive : overlayShown ? t.hintOverlayShown : t.hintIdle) && (
+              <p className="text-[11px] mt-1.5" style={{ color: PALETTE.muted }}>
+                {mapActive ? t.hintActive : overlayShown ? t.hintOverlayShown : t.hintIdle}
+              </p>
+            )}
           </div>
 
           {/* PHONE MOCK */}
@@ -1236,11 +1197,6 @@ function WayfindingPrototype() {
             </div>
           </div>
         </div>
-
-        <p className="text-xs mt-8" style={{ color: PALETTE.muted }}>
-          Le coordinate dei pin sulla foto sono una stima visiva mia: dimmi se qualche punto va spostato
-          (es. "S8 è più in alto") e lo correggo subito. Inviami le foto di Primo e Secondo Piano per completare l'edificio.
-        </p>
       </div>
     </div>
   );
