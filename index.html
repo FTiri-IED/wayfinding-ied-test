@@ -321,24 +321,6 @@ const LOCATIONS = [
   },
 ];
 
-const ORDER = [
-  "reception",
-  "ufficio-comunicazione",
-  "arti-visive-2",
-  "arti-visive-1",
-  "segreteria",
-  "aula-magna",
-  "aula-s9",
-  "lab-s8",
-  "lab-s4",
-  "lab-s5",
-  "lab-s6",
-  "lab-s3",
-  "lab-s7",
-  "lab-s2",
-  "lab-s1",
-];
-
 // Posizioni stimate delle scale sulla foto del Piano Terra.
 // Finché non abbiamo le foto di Primo e Secondo Piano, si assume che
 // ogni scala mantenga la stessa posizione (x,y) salendo di piano:
@@ -536,6 +518,20 @@ function WayfindingPrototype() {
 
     const time = (ext && (ext.Orario || ext.orario)) || loc.time;
 
+    // Colonne opzionali per "prossima tappa": appare SOLO se compilate nell'Excel,
+    // non c'è più un percorso automatico predefinito.
+    const nextStopName = ext
+      ? useEn
+        ? ext.Nome_prossima_tappa_EN || ext.nome_prossima_tappa_en || ext.Nome_prossima_tappa || ext.nome_prossima_tappa
+        : ext.Nome_prossima_tappa || ext.nome_prossima_tappa
+      : null;
+    const nextStopCode = ext ? ext.ID_prossima_tappa || ext.id_prossima_tappa || ext.Codice_prossima_tappa || null : null;
+    const nextStopComment = ext
+      ? useEn
+        ? ext.Commento_EN || ext.commento_en || ext.Commento || ext.commento
+        : ext.Commento || ext.commento
+      : null;
+
     return {
       ...loc,
       name,
@@ -543,6 +539,9 @@ function WayfindingPrototype() {
       time,
       desc,
       highlighted: ext ? truthy(ext.Evidenziato || ext.evidenziato || ext.Highlighted || ext.highlighted) : false,
+      nextStopName: nextStopName || null,
+      nextStopCode: nextStopCode ? String(nextStopCode).trim().toUpperCase() : null,
+      nextStopComment: nextStopComment || null,
     };
   };
 
@@ -551,7 +550,6 @@ function WayfindingPrototype() {
     : LOCATIONS
   ).map(mergeExternal);
 
-  const VISIBLE_ORDER = ORDER.filter((id) => VISIBLE_LOCATIONS.some((l) => l.id === id));
 
   const searchResults =
     searchQuery.trim().length > 0
@@ -692,8 +690,12 @@ function WayfindingPrototype() {
   };
 
   const selected = VISIBLE_LOCATIONS.find((l) => l.id === selectedId) || null;
-  const nextId = selected ? VISIBLE_ORDER[VISIBLE_ORDER.indexOf(selected.id) + 1] : null;
-  const next = nextId ? VISIBLE_LOCATIONS.find((l) => l.id === nextId) : null;
+  // "Prossima tappa" ora arriva SOLO dall'Excel (colonne Nome_prossima_tappa / ID_prossima_tappa / Commento).
+  // Se non sono compilate per questa stanza, semplicemente non c'è alcuna prossima tappa da mostrare.
+  const next =
+    selected && selected.nextStopCode
+      ? VISIBLE_LOCATIONS.find((l) => l.code.toUpperCase() === selected.nextStopCode) || null
+      : null;
 
   const currentFloor = FLOORS.find((f) => f.id === floor);
   const pinsOnFloor = VISIBLE_LOCATIONS.filter((l) => l.floor === floor);
@@ -1143,26 +1145,31 @@ function WayfindingPrototype() {
                         {selected.desc}
                       </p>
 
-                      <div className="rounded-xl p-3" style={{ background: PALETTE.panelAlt, border: `1px solid ${PALETTE.grid}` }}>
-                        <div className="text-[10px] mb-1" style={{ color: PALETTE.muted }}>
-                          {t.nextStop}
-                        </div>
-                        {next ? (
-                          <button onClick={() => selectLocation(next.id)} className="w-full flex items-center justify-between">
-                            <div className="text-left">
-                              <div className="text-sm font-medium">{next.name}</div>
-                              <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
-                                {fl(FLOORS[next.floor])}
-                              </div>
-                            </div>
-                            <Icon.ArrowRight size={16} style={{ color: PALETTE.amber }} />
-                          </button>
-                        ) : (
-                          <div className="text-sm" style={{ color: PALETTE.muted }}>
-                            {t.routeDone}
+                      {selected.nextStopName && (
+                        <div className="rounded-xl p-3" style={{ background: PALETTE.panelAlt, border: `1px solid ${PALETTE.grid}` }}>
+                          <div className="text-[10px] mb-1" style={{ color: PALETTE.muted }}>
+                            {t.nextStop}
                           </div>
-                        )}
-                      </div>
+                          {next ? (
+                            <button onClick={() => selectLocation(next.id)} className="w-full flex items-center justify-between">
+                              <div className="text-left">
+                                <div className="text-sm font-medium">{selected.nextStopName}</div>
+                                <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
+                                  {fl(FLOORS[next.floor])}
+                                </div>
+                              </div>
+                              <Icon.ArrowRight size={16} style={{ color: PALETTE.amber }} />
+                            </button>
+                          ) : (
+                            <div className="text-sm font-medium">{selected.nextStopName}</div>
+                          )}
+                          {selected.nextStopComment && (
+                            <p className="text-xs mt-1.5" style={{ color: PALETTE.muted }}>
+                              {selected.nextStopComment}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
