@@ -460,7 +460,6 @@ function WayfindingPrototype() {
       waitingScanDesc: "Inquadra il QR appeso alla porta di una stanza, oppure scegli qui sotto.",
       noRoomsFloor: "Nessuna stanza ancora configurata su questo piano.",
       backToMap: "Mappa generale",
-      arrivedAt: "Sei arrivato ·",
       nextStop: "Prossima tappa suggerita",
       routeDone: "Percorso completato — grazie per aver partecipato!",
       arrivedVia: (stairLabel, direction, floorLabel) =>
@@ -487,7 +486,6 @@ function WayfindingPrototype() {
       waitingScanDesc: "Scan the QR code on a room's door, or choose one below.",
       noRoomsFloor: "No rooms configured on this floor yet.",
       backToMap: "Back to map",
-      arrivedAt: "You've arrived ·",
       nextStop: "Suggested next stop",
       routeDone: "Route completed — thanks for taking part!",
       arrivedVia: (stairLabel, direction, floorLabel) =>
@@ -1131,7 +1129,7 @@ function WayfindingPrototype() {
                         <Icon.Home size={12} /> {t.backToMap}
                       </button>
                       <div className="mono-font text-[11px] uppercase tracking-wide mb-1" style={{ color: PALETTE.amber }}>
-                        {t.arrivedAt} {selected.code}
+                        Via Sciesa 4 · {fl(currentFloor)}
                       </div>
                       <h2 className="display-font text-xl font-semibold mb-2 leading-tight">{selected.name}</h2>
                       <div
