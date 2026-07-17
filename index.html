@@ -955,14 +955,14 @@ function WayfindingPrototype() {
                       )}
                     </div>
                     <span
-                      className="mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded transition-opacity"
+                      className={isActive ? "text-[10px] mt-1 px-1.5 py-0.5 rounded transition-opacity font-bold whitespace-nowrap" : "mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded transition-opacity"}
                       style={{
                         background: "#0B1626",
                         color: pinColor,
                         opacity: !isActive && anySelected ? 0.55 : 1,
                       }}
                     >
-                      {loc.code}
+                      {isActive ? loc.name : loc.code}
                     </span>
                   </button>
                 );
