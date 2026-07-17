@@ -426,6 +426,30 @@ function WayfindingPrototype() {
   // da una normale selezione manuale.
   const [gotoCode, setGotoCode] = useState(null);
 
+  // --- Parametro "userPosition": es. ?userPosition=PT-REC
+  // Indica DOVE SI TROVA FISICAMENTE l'utente (QR fisico appeso in quella posizione).
+  // Il pin resta sempre evidenziato in rosso con l'etichetta "Sei qui", anche se
+  // l'utente clicca su altri pin per esplorare — si rimpicciolisce solo un po'.
+  const [userPositionCode, setUserPositionCode] = useState(null);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const up = params.get("userPosition");
+      if (!up) return;
+      const code = up.trim().toUpperCase();
+      setUserPositionCode(code);
+      // Se non c'è anche un "goto", orienta la mappa sul piano di dove si trova l'utente.
+      // Se c'è anche "goto", quello ha priorità nel decidere piano e pannello iniziali.
+      if (!params.get("goto")) {
+        const loc = LOCATIONS.find((l) => l.code.toUpperCase() === code);
+        if (loc) setFloor(loc.floor);
+      }
+    } catch (e) {
+      // parametro assente o URL non valido
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -468,6 +492,7 @@ function WayfindingPrototype() {
       hintOverlayShown: "Tocca ancora per attivare zoom e trascinamento.",
       hintIdle: "",
       resetZoom: "Reset zoom",
+      youAreHere: "Sei qui",
       waitingScan: "Scegli una posizione",
       waitingScanDesc: "Usa la ricerca qui sopra, tocca un pin sulla mappa, oppure scegli una stanza dall'elenco qui sotto.",
       noRoomsFloor: "Nessuna stanza ancora configurata su questo piano.",
@@ -494,6 +519,7 @@ function WayfindingPrototype() {
       hintOverlayShown: "Tap again to enable zoom and panning.",
       hintIdle: "",
       resetZoom: "Reset zoom",
+      youAreHere: "You are here",
       waitingScan: "Choose a location",
       waitingScanDesc: "Use the search above, tap a pin on the map, or pick a room from the list below.",
       noRoomsFloor: "No rooms configured on this floor yet.",
@@ -944,11 +970,15 @@ function WayfindingPrototype() {
                 const p = projectPoint(loc.x, loc.y);
                 const isActive = selectedId === loc.id;
                 const anySelected = selectedId !== null;
-                const size = isActive ? 30 : anySelected ? 16 : 30;
                 const isGotoTarget = gotoCode && loc.code.toUpperCase() === gotoCode;
-                const pinColor = isGotoTarget ? PALETTE.goto : loc.highlighted ? PALETTE.highlight : PALETTE.amber;
-                const pinColorSoft = isGotoTarget ? PALETTE.gotoSoft : loc.highlighted ? PALETTE.highlightSoft : PALETTE.amberSoft;
-                const activeTextColor = isGotoTarget || loc.highlighted ? "#2a0a0a" : "#1a1200";
+                const isUserPos = userPositionCode && loc.code.toUpperCase() === userPositionCode;
+                // L'aspetto "attivo" (nome in grassetto, icona sempre visibile, piena opacità)
+                // si applica anche al pin "sei qui", non solo a quello selezionato al momento.
+                const looksActive = isActive || isUserPos;
+                const size = isActive ? 30 : isUserPos ? 24 : anySelected ? 16 : 30;
+                const pinColor = isGotoTarget || isUserPos ? PALETTE.goto : loc.highlighted ? PALETTE.highlight : PALETTE.amber;
+                const pinColorSoft = isGotoTarget || isUserPos ? PALETTE.gotoSoft : loc.highlighted ? PALETTE.highlightSoft : PALETTE.amberSoft;
+                const activeTextColor = isGotoTarget || isUserPos || loc.highlighted ? "#2a0a0a" : "#1a1200";
                 return (
                   <button
                     key={loc.id}
@@ -959,30 +989,42 @@ function WayfindingPrototype() {
                     className="absolute top-0 left-0 flex flex-col items-center group p-1.5 transition-all"
                     style={{ transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform" }}
                   >
+                    {isUserPos && (
+                      <span
+                        className="mono-font text-[9px] mb-1 px-2 py-0.5 rounded-full font-bold whitespace-nowrap flex items-center gap-1"
+                        style={{ background: PALETTE.goto, color: "#2a0a0a" }}
+                      >
+                        <span
+                          className="rounded-full"
+                          style={{ width: 5, height: 5, background: "#2a0a0a", display: "inline-block" }}
+                        />
+                        {t.youAreHere}
+                      </span>
+                    )}
                     <div
                       className="rounded-full flex items-center justify-center transition-all group-hover:scale-110"
                       style={{
                         width: size,
                         height: size,
-                        background: isActive ? pinColor : "#0B1626",
+                        background: looksActive ? pinColor : "#0B1626",
                         border: `2px solid ${pinColor}`,
-                        boxShadow: isActive ? `0 0 0 6px ${pinColorSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
-                        opacity: !isActive && anySelected ? 0.7 : 1,
+                        boxShadow: looksActive ? `0 0 0 6px ${pinColorSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
+                        opacity: !looksActive && anySelected ? 0.7 : 1,
                       }}
                     >
-                      {(isActive || !anySelected) && (
-                        <Icon.MapPin size={14} color={isActive ? activeTextColor : pinColor} />
+                      {(looksActive || !anySelected) && (
+                        <Icon.MapPin size={14} color={looksActive ? activeTextColor : pinColor} />
                       )}
                     </div>
                     <span
-                      className={isActive ? "text-[10px] mt-1 px-1.5 py-0.5 rounded transition-opacity font-bold whitespace-nowrap" : "mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded transition-opacity"}
+                      className={looksActive ? "text-[10px] mt-1 px-1.5 py-0.5 rounded transition-opacity font-bold whitespace-nowrap" : "mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded transition-opacity"}
                       style={{
                         background: "#0B1626",
                         color: pinColor,
-                        opacity: !isActive && anySelected ? 0.55 : 1,
+                        opacity: !looksActive && anySelected ? 0.55 : 1,
                       }}
                     >
-                      {isActive ? loc.name : loc.code}
+                      {looksActive ? loc.name : loc.code}
                     </span>
                   </button>
                 );
