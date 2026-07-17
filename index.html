@@ -95,6 +95,8 @@ const PALETTE = {
   muted: "#8FA0B8",
   highlight: "#FF4D4D",
   highlightSoft: "#7A1F1F",
+  goto: "#FF3232",
+  gotoSoft: "#7A1616",
 };
 
 const FLOOR0_IMG = "https://www.ied.it/_default_upload_bucket/foto-mappa-piano-terra-sciesa.png";
@@ -426,6 +428,10 @@ function WayfindingPrototype() {
   // --- Parametro "goto" nell'URL dell'iframe: es. ?goto=PT-S3
   // Seleziona automaticamente quella stanza all'apertura della pagina
   // (utile per i QR code fisici che devono portare dritti a una stanza specifica).
+  // Il pin di destinazione viene colorato diversamente (PALETTE.goto) per distinguerlo
+  // da una normale selezione manuale.
+  const [gotoCode, setGotoCode] = useState(null);
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -437,6 +443,7 @@ function WayfindingPrototype() {
       if (!loc) return;
       setFloor(loc.floor);
       setSelectedId(loc.id);
+      setGotoCode(code);
     } catch (e) {
       // parametro assente o URL non valido: nessun problema, si resta sulla vista di default
     }
@@ -704,6 +711,10 @@ function WayfindingPrototype() {
         .mono-font { font-family: 'IBM Plex Mono', monospace; }
         ::-webkit-scrollbar { height: 6px; width: 6px; }
         ::-webkit-scrollbar-thumb { background: ${PALETTE.grid}; border-radius: 4px; }
+        .phone-col { width: 100%; }
+        @media (min-width: 1024px) {
+          .phone-col { width: 300px; flex: 0 0 300px; }
+        }
       `}</style>
 
       <div
@@ -914,9 +925,10 @@ function WayfindingPrototype() {
                 const isActive = selectedId === loc.id;
                 const anySelected = selectedId !== null;
                 const size = isActive ? 30 : anySelected ? 16 : 30;
-                const pinColor = loc.highlighted ? PALETTE.highlight : PALETTE.amber;
-                const pinColorSoft = loc.highlighted ? PALETTE.highlightSoft : PALETTE.amberSoft;
-                const activeTextColor = loc.highlighted ? "#2a0a0a" : "#1a1200";
+                const isGotoTarget = gotoCode && loc.code.toUpperCase() === gotoCode;
+                const pinColor = isGotoTarget ? PALETTE.goto : loc.highlighted ? PALETTE.highlight : PALETTE.amber;
+                const pinColorSoft = isGotoTarget ? PALETTE.gotoSoft : loc.highlighted ? PALETTE.highlightSoft : PALETTE.amberSoft;
+                const activeTextColor = isGotoTarget || loc.highlighted ? "#2a0a0a" : "#1a1200";
                 return (
                   <button
                     key={loc.id}
@@ -1043,7 +1055,7 @@ function WayfindingPrototype() {
           </div>
 
           {/* PHONE MOCK */}
-          <div className="w-full lg:w-auto flex justify-center">
+          <div className="phone-col flex justify-center">
             <div
               className="rounded-[2.25rem] p-2.5 w-full"
               style={{ background: "#0B1626", border: `1px solid ${PALETTE.grid}`, maxWidth: 300 }}
