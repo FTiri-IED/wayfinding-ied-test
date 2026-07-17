@@ -81,6 +81,18 @@ const Icon = {
       <path d="M18 6 6 18" /><path d="m6 6 12 12" />
     </svg>
   ),
+  Maximize: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+      <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  ),
+  Minimize: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3v3a2 2 0 0 1-2 2H3" /><path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+      <path d="M3 16h3a2 2 0 0 1 2 2v3" /><path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+    </svg>
+  ),
 };
 
 
@@ -342,6 +354,35 @@ function WayfindingPrototype() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [lang, setLang] = useState("it"); // "it" | "en"
+
+  // --- Fullscreen: richiede il vero schermo intero del browser sull'intero widget.
+  // Su iOS Safari questa API ha supporto limitato per elementi generici (solo <video>
+  // storicamente) — su Android Chrome e desktop funziona regolarmente.
+  const rootRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!fsElement) {
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  };
 
   // --- Parametro "show-only" nell'URL dell'iframe: es. ?show-only=PT-S1,PT-S3,PT-REC
   // Filtra quali AULE mostrare sulla mappa. Le scale non sono mai filtrate.
@@ -700,6 +741,7 @@ function WayfindingPrototype() {
 
   return (
     <div
+      ref={rootRef}
       style={{ background: PALETTE.bg, color: PALETTE.text, fontFamily: "'IBM Plex Sans', sans-serif" }}
       className="min-h-screen w-full"
     >
@@ -717,27 +759,38 @@ function WayfindingPrototype() {
         }
       `}</style>
 
-      <div
-        style={{ position: "fixed", top: 12, right: 12, zIndex: 60, background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
-        className="rounded-full p-1 flex gap-1"
-      >
-        <button
-          onClick={() => setLang("it")}
-          className="mono-font text-[10px] px-2.5 py-1 rounded-full"
-          style={{ background: lang === "it" ? PALETTE.amber : "transparent", color: lang === "it" ? "#1a1200" : PALETTE.muted }}
-        >
-          ITA
-        </button>
-        <button
-          onClick={() => setLang("en")}
-          className="mono-font text-[10px] px-2.5 py-1 rounded-full"
-          style={{ background: lang === "en" ? PALETTE.amber : "transparent", color: lang === "en" ? "#1a1200" : PALETTE.muted }}
-        >
-          ENG
-        </button>
-      </div>
-
       <div className="max-w-5xl mx-auto px-3 py-5 md:px-4 md:py-12">
+        {/* Switch lingua + fullscreen: riga statica in alto, non più sovrapposta al contenuto */}
+        <div className="flex justify-end items-center gap-2 mb-3 md:mb-4">
+          <button
+            onClick={toggleFullscreen}
+            className="rounded-full p-2 flex items-center justify-center"
+            style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
+            title={isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
+          >
+            {isFullscreen ? <Icon.Minimize size={14} color={PALETTE.muted} /> : <Icon.Maximize size={14} color={PALETTE.muted} />}
+          </button>
+          <div
+            style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
+            className="rounded-full p-1 flex gap-1"
+          >
+            <button
+              onClick={() => setLang("it")}
+              className="mono-font text-[10px] px-2.5 py-1 rounded-full"
+              style={{ background: lang === "it" ? PALETTE.amber : "transparent", color: lang === "it" ? "#1a1200" : PALETTE.muted }}
+            >
+              ITA
+            </button>
+            <button
+              onClick={() => setLang("en")}
+              className="mono-font text-[10px] px-2.5 py-1 rounded-full"
+              style={{ background: lang === "en" ? PALETTE.amber : "transparent", color: lang === "en" ? "#1a1200" : PALETTE.muted }}
+            >
+              ENG
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="mb-5 md:mb-8">
           <div className="flex items-center gap-2 mb-2 md:mb-3" style={{ color: PALETTE.amber }}>
