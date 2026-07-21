@@ -837,9 +837,36 @@ function WayfindingPrototype() {
     return { x: view.x + baseX * view.scale, y: view.y + baseY * view.scale };
   };
 
+  // --- Piccolo "tock" sonoro generato al volo (nessun file audio esterno da caricare),
+  // per dare un feedback discreto quando si tocca un pin o una scala.
+  const audioCtxRef = useRef(null);
+  const playTapSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioCtx();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === "suspended") ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 720;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.09);
+    } catch (e) {
+      // audio non disponibile in questo browser: nessun problema, si prosegue senza suono
+    }
+  };
+
   const selectLocation = (id) => {
     const loc = VISIBLE_LOCATIONS.find((l) => l.id === id);
     if (!loc) return;
+    playTapSound();
     setFloor(loc.floor);
     setSelectedId(id);
     setSelectedStairId(null);
@@ -847,6 +874,7 @@ function WayfindingPrototype() {
   };
 
   const goToStair = (stair, targetFloor, direction) => {
+    playTapSound();
     setFloor(targetFloor);
     setSelectedStairId(stair.id);
     setSelectedStairDirection(direction);
