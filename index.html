@@ -510,8 +510,9 @@ function WayfindingPrototype() {
   const [externalData, setExternalData] = useState(null);
   const [dataStatus, setDataStatus] = useState("idle"); // idle | loading | loaded | error
   // Foglio facoltativo "Impostazioni" nello stesso Excel: titolo, testo introduttivo,
-  // colori e dimensioni della pagina. Se manca o è vuoto, restano i valori di default.
-  const [pageSettings, setPageSettings] = useState(null);
+  // colori, dimensioni ed eventuale esclusione — una riga per sede (colonna "Sede"),
+  // più una riga facoltativa senza "Sede" che fa da default per tutte.
+  const [pageSettingsRows, setPageSettingsRows] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -540,19 +541,19 @@ function WayfindingPrototype() {
           if (code) map[code] = row;
         });
 
-        // Foglio "Impostazioni" (facoltativo): prima riga di dati = impostazioni pagina.
+        // Foglio "Impostazioni" (facoltativo): una riga per sede, riconosciuta
+        // dalla colonna "Sede" (es. "sciesa", "leoni", "bezzecca").
         const settingsSheetName = wb.SheetNames.find(
           (n) => n.trim().toLowerCase() === "impostazioni"
         );
-        let settings = null;
+        let settingsRows = [];
         if (settingsSheetName) {
-          const settingsRows = window.XLSX.utils.sheet_to_json(wb.Sheets[settingsSheetName]);
-          if (settingsRows.length > 0) settings = settingsRows[0];
+          settingsRows = window.XLSX.utils.sheet_to_json(wb.Sheets[settingsSheetName]);
         }
 
         if (!cancelled) {
           setExternalData(map);
-          setPageSettings(settings);
+          setPageSettingsRows(settingsRows);
           setDataStatus("loaded");
         }
       })
@@ -644,7 +645,7 @@ function WayfindingPrototype() {
   const UI = {
     it: {
       kickerFor: (buildingName) => `Sede IED Milano - ${buildingName}`,
-      title: "IED Milano - sede di via Sciesa",
+      titleFor: (buildingName) => `IED Milano - sede di ${buildingName}`,
       intro:
         "Questa pagina ti aiuta a raggiungere l'aula che ti interessa. Cerca una stanza, tocca un pin sulla mappa o scegli dall'elenco qui sotto per vedere orari e indicazioni.",
       dataLoading: "Aggiornamento dati delle aule in corso…",
@@ -680,7 +681,7 @@ function WayfindingPrototype() {
     },
     en: {
       kickerFor: (buildingName) => `IED Milano Campus - ${buildingName}`,
-      title: "IED Milano - Via Sciesa Campus",
+      titleFor: (buildingName) => `IED Milano - ${buildingName} campus`,
       intro:
         "This page helps you find your way to the room you're looking for. Search for a room, tap a pin on the map, or pick one from the list below to see times and directions.",
       dataLoading: "Updating room data…",
@@ -718,12 +719,20 @@ function WayfindingPrototype() {
   const t = UI[lang];
   const fl = (floorObj) => (lang === "en" ? floorObj.labelEn : floorObj.label);
 
-  // Titolo e testo introduttivo: se il foglio "Impostazioni" li definisce, hanno la
-  // priorità; altrimenti restano i valori di default tradotti (t.title / t.intro).
+  // Riga di impostazioni applicabile alla sede corrente: prima quella con "Sede"
+  // che combacia (es. "bezzecca"), altrimenti quella senza "Sede" (default per tutte).
+  const pageSettings =
+    pageSettingsRows.find((r) => String(r.Sede || "").trim().toLowerCase() === currentBuildingId) ||
+    pageSettingsRows.find((r) => !r.Sede || String(r.Sede).trim() === "") ||
+    null;
+
+  // Titolo e testo introduttivo: se il foglio "Impostazioni" li definisce per questa
+  // sede (o come default per tutte), hanno la priorità; altrimenti resta il titolo
+  // di default, che segue automaticamente il nome della sede corrente.
   const pageTitle =
     (pageSettings &&
       (lang === "en" ? pageSettings.Titolo_EN || pageSettings.Titolo : pageSettings.Titolo)) ||
-    t.title;
+    t.titleFor(building.name);
   const pageIntro =
     (pageSettings &&
       (lang === "en" ? pageSettings.Testo_EN || pageSettings.Testo : pageSettings.Testo)) ||
@@ -734,6 +743,24 @@ function WayfindingPrototype() {
   const introColor = pageSettings && pageSettings.Testo_Colore ? String(pageSettings.Testo_Colore) : undefined;
   const introSize =
     pageSettings && pageSettings.Testo_Dimensione ? Number(pageSettings.Testo_Dimensione) : undefined;
+
+  // Sedi nascoste dall'Excel: qualsiasi riga di "Impostazioni" con una "Sede" specifica
+  // E la colonna "Nascosta" compilata esclude quella sede dal menu e dalla ricerca globale.
+  const hiddenBuildingIds = new Set(
+    pageSettingsRows
+      .filter((r) => r.Sede && String(r.Nascosta || "").trim() !== "")
+      .map((r) => String(r.Sede).trim().toLowerCase())
+  );
+  const visibleBuildings = BUILDINGS.filter((b) => !hiddenBuildingIds.has(b.id));
+  const visibleAllLocations = ALL_LOCATIONS.filter((l) => !hiddenBuildingIds.has(l.buildingId));
+
+  useEffect(() => {
+    if (hiddenBuildingIds.has(currentBuildingId) && visibleBuildings.length > 0) {
+      setCurrentBuildingId(visibleBuildings[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageSettingsRows, currentBuildingId]);
+
 
   const mergeExternal = (loc) => {
     const ext = externalData && externalData[loc.code.toUpperCase()];
@@ -799,7 +826,7 @@ function WayfindingPrototype() {
 
   const searchResults =
     searchQuery.trim().length > 0
-      ? ALL_LOCATIONS.filter(
+      ? visibleAllLocations.filter(
           (l) =>
             l.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
             l.code.toLowerCase().includes(searchQuery.trim().toLowerCase())
@@ -1074,16 +1101,18 @@ function WayfindingPrototype() {
         <div className="mb-5 md:mb-8">
           <div className="relative inline-block">
             <button
-              onClick={() => setShowCampusMenu((v) => !v)}
+              onClick={() => {
+                if (visibleBuildings.length > 1) setShowCampusMenu((v) => !v);
+              }}
               className="flex items-center gap-2 mb-2 md:mb-3"
-              style={{ color: AC.amber }}
+              style={{ color: AC.amber, cursor: visibleBuildings.length > 1 ? "pointer" : "default" }}
             >
               <Icon.Building2 size={16} />
               <span className="mono-font text-[10px] md:text-xs tracking-widest uppercase">{t.kickerFor(building.name)}</span>
-              <Icon.ChevronDown size={13} style={{ opacity: 0.7 }} />
+              {visibleBuildings.length > 1 && <Icon.ChevronDown size={13} style={{ opacity: 0.7 }} />}
             </button>
 
-            {showCampusMenu && (
+            {showCampusMenu && visibleBuildings.length > 1 && (
               <>
                 <div className="fixed inset-0" style={{ zIndex: 55 }} onClick={() => setShowCampusMenu(false)} />
                 <div
@@ -1093,7 +1122,7 @@ function WayfindingPrototype() {
                   <div className="px-3 py-2 mono-font text-[10px] uppercase tracking-wide" style={{ color: AC.muted, borderBottom: `1px solid ${PALETTE.grid}` }}>
                     {t.chooseCampus}
                   </div>
-                  {BUILDINGS.map((b) => {
+                  {visibleBuildings.map((b) => {
                     const isCurrent = b.id === currentBuildingId;
 
                     const content = (
