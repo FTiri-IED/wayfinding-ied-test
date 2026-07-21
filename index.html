@@ -93,6 +93,15 @@ const Icon = {
       <path d="M3 16h3a2 2 0 0 1 2 2v3" /><path d="M16 21v-3a2 2 0 0 1 2-2h3" />
     </svg>
   ),
+  Accessibility: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="16" cy="4" r="1" />
+      <path d="m18 19 1-7-6 1" />
+      <path d="m5 8 3-3 5.5 3-2.36 3.5" />
+      <path d="M4.24 14.5a5 5 0 0 0 6.88 6" />
+      <path d="M13.76 17.5a5 5 0 0 0-6.88-6" />
+    </svg>
+  ),
 };
 
 
@@ -354,6 +363,38 @@ function WayfindingPrototype() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [lang, setLang] = useState("it"); // "it" | "en"
+  const [a11yMode, setA11yMode] = useState(false);
+  const [showA11yPrompt, setShowA11yPrompt] = useState(false);
+
+  // Palette Okabe-Ito (pensata per essere distinguibile in tutte le forme comuni di
+  // daltonismo) usata quando la modalità accessibile è attiva, al posto dei colori normali.
+  const AC = a11yMode
+    ? {
+        amber: "#E69F00", // arancione (pin normali, accenti UI)
+        amberSoft: "rgba(230,159,0,0.35)",
+        highlight: "#CC79A7", // porpora (Excel "Evidenziato")
+        highlightSoft: "rgba(204,121,167,0.35)",
+        goto: "#D55E00", // vermiglio (destinazione / "sei qui")
+        gotoSoft: "rgba(213,94,0,0.35)",
+        stair: "#0072B2", // blu (scale, al posto del verde — mai vicino al rosso/vermiglio)
+        stairSoft: "rgba(0,114,178,0.35)",
+        muted: "#C7D2DB", // testo secondario più chiaro, contrasto più alto sullo sfondo scuro
+        border: 3,
+        fontBoost: 2, // px in più sui font dei pin, per leggibilità
+      }
+    : {
+        amber: PALETTE.amber,
+        amberSoft: PALETTE.amberSoft,
+        highlight: PALETTE.highlight,
+        highlightSoft: PALETTE.highlightSoft,
+        goto: PALETTE.goto,
+        gotoSoft: PALETTE.gotoSoft,
+        stair: "#3DDC97",
+        stairSoft: "#164B36",
+        muted: PALETTE.muted,
+        border: 2,
+        fontBoost: 0,
+      };
 
   // --- Parametro "show-only" nell'URL dell'iframe: es. ?show-only=PT-S1,PT-S3,PT-REC
   // Filtra quali AULE mostrare sulla mappa. Le scale non sono mai filtrate.
@@ -379,6 +420,9 @@ function WayfindingPrototype() {
   // controlla solo il contenuto testuale, non la geometria della mappa.
   const [externalData, setExternalData] = useState(null);
   const [dataStatus, setDataStatus] = useState("idle"); // idle | loading | loaded | error
+  // Foglio facoltativo "Impostazioni" nello stesso Excel: titolo, testo introduttivo,
+  // colori e dimensioni della pagina. Se manca o è vuoto, restano i valori di default.
+  const [pageSettings, setPageSettings] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -406,8 +450,20 @@ function WayfindingPrototype() {
             .toUpperCase();
           if (code) map[code] = row;
         });
+
+        // Foglio "Impostazioni" (facoltativo): prima riga di dati = impostazioni pagina.
+        const settingsSheetName = wb.SheetNames.find(
+          (n) => n.trim().toLowerCase() === "impostazioni"
+        );
+        let settings = null;
+        if (settingsSheetName) {
+          const settingsRows = window.XLSX.utils.sheet_to_json(wb.Sheets[settingsSheetName]);
+          if (settingsRows.length > 0) settings = settingsRows[0];
+        }
+
         if (!cancelled) {
           setExternalData(map);
+          setPageSettings(settings);
           setDataStatus("loaded");
         }
       })
@@ -493,6 +549,12 @@ function WayfindingPrototype() {
       hintIdle: "",
       resetZoom: "Reset zoom",
       youAreHere: "Sei qui",
+      a11yToggle: "Modalità accessibile",
+      a11yConfirmOn: "Vuoi attivare la modalità accessibile? Userà colori più distinguibili per il daltonismo, bordi più spessi e niente animazioni.",
+      a11yConfirmOff: "Vuoi disattivare la modalità accessibile?",
+      cancel: "Annulla",
+      activate: "Attiva",
+      deactivate: "Disattiva",
       waitingScan: "Scegli una posizione",
       waitingScanDesc: "Usa la ricerca qui sopra, tocca un pin sulla mappa, oppure scegli una stanza dall'elenco qui sotto.",
       noRoomsFloor: "Nessuna stanza ancora configurata su questo piano.",
@@ -520,6 +582,12 @@ function WayfindingPrototype() {
       hintIdle: "",
       resetZoom: "Reset zoom",
       youAreHere: "You are here",
+      a11yToggle: "Accessible mode",
+      a11yConfirmOn: "Turn on accessible mode? It uses colours that are easier to distinguish for colour blindness, thicker borders, and no animations.",
+      a11yConfirmOff: "Turn off accessible mode?",
+      cancel: "Cancel",
+      activate: "Turn on",
+      deactivate: "Turn off",
       waitingScan: "Choose a location",
       waitingScanDesc: "Use the search above, tap a pin on the map, or pick a room from the list below.",
       noRoomsFloor: "No rooms configured on this floor yet.",
@@ -532,6 +600,23 @@ function WayfindingPrototype() {
   };
   const t = UI[lang];
   const fl = (floorObj) => (lang === "en" ? floorObj.labelEn : floorObj.label);
+
+  // Titolo e testo introduttivo: se il foglio "Impostazioni" li definisce, hanno la
+  // priorità; altrimenti restano i valori di default tradotti (t.title / t.intro).
+  const pageTitle =
+    (pageSettings &&
+      (lang === "en" ? pageSettings.Titolo_EN || pageSettings.Titolo : pageSettings.Titolo)) ||
+    t.title;
+  const pageIntro =
+    (pageSettings &&
+      (lang === "en" ? pageSettings.Testo_EN || pageSettings.Testo : pageSettings.Testo)) ||
+    t.intro;
+  const titleColor = pageSettings && pageSettings.Titolo_Colore ? String(pageSettings.Titolo_Colore) : undefined;
+  const titleSize =
+    pageSettings && pageSettings.Titolo_Dimensione ? Number(pageSettings.Titolo_Dimensione) : undefined;
+  const introColor = pageSettings && pageSettings.Testo_Colore ? String(pageSettings.Testo_Colore) : undefined;
+  const introSize =
+    pageSettings && pageSettings.Testo_Dimensione ? Number(pageSettings.Testo_Dimensione) : undefined;
 
   const mergeExternal = (loc) => {
     const ext = externalData && externalData[loc.code.toUpperCase()];
@@ -568,6 +653,11 @@ function WayfindingPrototype() {
         : ext.Commento || ext.commento
       : null;
 
+    // Colonna "Nascosta" (facoltativa): se contiene QUALSIASI valore (es. "NO", "X", "SI"),
+    // l'aula viene nascosta dalla mappa. Vuota o assente = visibile, di default.
+    const nascostaValue = ext && (ext.Nascosta ?? ext.nascosta ?? ext.Nascosto ?? ext.nascosto);
+    const hiddenByExcel = nascostaValue !== undefined && nascostaValue !== null && String(nascostaValue).trim() !== "";
+
     return {
       ...loc,
       name,
@@ -575,6 +665,7 @@ function WayfindingPrototype() {
       time,
       desc,
       highlighted: ext ? truthy(ext.Evidenziato || ext.evidenziato || ext.Highlighted || ext.highlighted) : false,
+      hiddenByExcel,
       nextStopName: nextStopName || null,
       nextStopCode: nextStopCode ? String(nextStopCode).trim().toUpperCase() : null,
       nextStopComment: nextStopComment || null,
@@ -584,7 +675,9 @@ function WayfindingPrototype() {
   const VISIBLE_LOCATIONS = (showOnlyCodes
     ? LOCATIONS.filter((l) => showOnlyCodes.includes(l.code.toUpperCase()))
     : LOCATIONS
-  ).map(mergeExternal);
+  )
+    .map(mergeExternal)
+    .filter((l) => !l.hiddenByExcel);
 
 
   const searchResults =
@@ -603,6 +696,20 @@ function WayfindingPrototype() {
   const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
   const [mapActive, setMapActive] = useState(false);
   const [overlayShown, setOverlayShown] = useState(false);
+  // Su dispositivi touch il pizzico non entra mai in conflitto con lo scroll a un dito
+  // (sono gesti diversi), quindi saltiamo del tutto il "tocca per attivare": la mappa è
+  // subito pronta al pizzico. Su desktop, dove la rotellina è lo stesso gesto dello
+  // scroll, serve invece un click esplicito prima di abilitare zoom/trascinamento.
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  useEffect(() => {
+    try {
+      const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+      setIsTouchDevice(Boolean(coarse));
+      if (coarse) setMapActive(true);
+    } catch (e) {
+      // matchMedia non disponibile: si resta sul comportamento desktop di default
+    }
+  }, []);
   const gestureRef = useRef({ lastDist: null, lastMid: null, lastTouch: null });
 
   useEffect(() => {
@@ -637,7 +744,13 @@ function WayfindingPrototype() {
     });
   };
 
-  const resetZoom = () => setView({ scale: 1, x: 0, y: 0 });
+  const resetZoom = () => {
+    setView({ scale: 1, x: 0, y: 0 });
+    if (!isTouchDevice) {
+      setMapActive(false);
+      setOverlayShown(false);
+    }
+  };
 
   const dist = (t1, t2) => Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
   const mid = (t1, t2, rect) => ({
@@ -753,48 +866,68 @@ function WayfindingPrototype() {
         @media (min-width: 1024px) {
           .phone-col { width: 300px; flex: 0 0 300px; }
         }
+        ${a11yMode ? ".fade-in, * { transition: none !important; animation: none !important; }" : ""}
       `}</style>
 
       <div className="max-w-5xl mx-auto px-3 py-5 md:px-4 md:py-12">
-        {/* Logo + switch lingua: riga statica in alto, non più sovrapposta al contenuto */}
-        <div className="flex justify-between items-center mb-3 md:mb-4">
+        {/* Logo + switch lingua + modalità accessibile: riga statica in alto */}
+        <div className="flex justify-between items-center mb-3 md:mb-4 gap-2">
           <img
             src="https://www.ied.it/logos/2025/IED-Logo-Red-new.png"
             alt="IED"
             style={{ height: 28 }}
           />
-          <div
-            style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
-            className="rounded-full p-1 flex gap-1"
-          >
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setLang("it")}
-              className="mono-font text-[10px] px-2.5 py-1 rounded-full"
-              style={{ background: lang === "it" ? PALETTE.amber : "transparent", color: lang === "it" ? "#1a1200" : PALETTE.muted }}
+              onClick={() => setShowA11yPrompt(true)}
+              className="rounded-full p-2 flex items-center justify-center"
+              style={{
+                background: a11yMode ? AC.amber : PALETTE.panel,
+                border: `1px solid ${a11yMode ? AC.amber : PALETTE.grid}`,
+              }}
+              title={t.a11yToggle}
             >
-              ITA
+              <Icon.Accessibility size={15} color={a11yMode ? "#1a1200" : AC.muted} />
             </button>
-            <button
-              onClick={() => setLang("en")}
-              className="mono-font text-[10px] px-2.5 py-1 rounded-full"
-              style={{ background: lang === "en" ? PALETTE.amber : "transparent", color: lang === "en" ? "#1a1200" : PALETTE.muted }}
+            <div
+              style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
+              className="rounded-full p-1 flex gap-1"
             >
-              ENG
-            </button>
+              <button
+                onClick={() => setLang("it")}
+                className="mono-font text-[10px] px-2.5 py-1 rounded-full"
+                style={{ background: lang === "it" ? AC.amber : "transparent", color: lang === "it" ? "#1a1200" : AC.muted }}
+              >
+                ITA
+              </button>
+              <button
+                onClick={() => setLang("en")}
+                className="mono-font text-[10px] px-2.5 py-1 rounded-full"
+                style={{ background: lang === "en" ? AC.amber : "transparent", color: lang === "en" ? "#1a1200" : AC.muted }}
+              >
+                ENG
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Header */}
         <div className="mb-5 md:mb-8">
-          <div className="flex items-center gap-2 mb-2 md:mb-3" style={{ color: PALETTE.amber }}>
+          <div className="flex items-center gap-2 mb-2 md:mb-3" style={{ color: AC.amber }}>
             <Icon.ScanLine size={16} />
             <span className="mono-font text-[10px] md:text-xs tracking-widest uppercase">{t.kicker}</span>
           </div>
-          <h1 className="display-font text-2xl md:text-4xl font-semibold mb-2 md:mb-3 leading-tight">
-            {t.title}
+          <h1
+            className="display-font text-2xl md:text-4xl font-semibold mb-2 md:mb-3 leading-tight"
+            style={{ color: titleColor, fontSize: titleSize ? `${titleSize}px` : undefined }}
+          >
+            {pageTitle}
           </h1>
-          <p style={{ color: PALETTE.muted }} className="max-w-2xl leading-relaxed text-sm md:text-base">
-            {t.intro}
+          <p
+            style={{ color: introColor || AC.muted, fontSize: introSize ? `${introSize}px` : undefined }}
+            className="max-w-2xl leading-relaxed text-sm md:text-base"
+          >
+            {pageIntro}
           </p>
         </div>
 
@@ -803,7 +936,7 @@ function WayfindingPrototype() {
           <div className="w-full lg:flex-1">
             {/* Stato caricamento dati da Excel esterno, se richiesto via ?data-url= */}
             {dataStatus === "loading" && (
-              <p className="text-[11px] mb-2" style={{ color: PALETTE.muted }}>
+              <p className="text-[11px] mb-2" style={{ color: AC.muted }}>
                 {t.dataLoading}
               </p>
             )}
@@ -819,7 +952,7 @@ function WayfindingPrototype() {
                 className="flex items-center gap-2 rounded-xl px-3 py-2.5"
                 style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}` }}
               >
-                <Icon.Search size={16} color={PALETTE.muted} />
+                <Icon.Search size={16} color={AC.muted} />
                 <input
                   value={searchQuery}
                   onChange={(e) => {
@@ -848,7 +981,7 @@ function WayfindingPrototype() {
                       setSearchOpen(false);
                     }}
                   >
-                    <Icon.X size={15} color={PALETTE.muted} />
+                    <Icon.X size={15} color={AC.muted} />
                   </button>
                 )}
               </div>
@@ -872,15 +1005,15 @@ function WayfindingPrototype() {
                       >
                         <div>
                           <div className="text-sm font-medium">{loc.name}</div>
-                          <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
+                          <div className="mono-font text-[10px]" style={{ color: AC.muted }}>
                             {loc.code} · {fl(FLOORS[loc.floor])}
                           </div>
                         </div>
-                        <Icon.MapPin size={14} color={PALETTE.amber} />
+                        <Icon.MapPin size={14} color={AC.amber} />
                       </button>
                     ))
                   ) : (
-                    <div className="px-3 py-2.5 text-sm" style={{ color: PALETTE.muted }}>
+                    <div className="px-3 py-2.5 text-sm" style={{ color: AC.muted }}>
                       {t.noResults}
                     </div>
                   )}
@@ -900,9 +1033,9 @@ function WayfindingPrototype() {
                   }}
                   className="flex-1 rounded-lg py-2.5 px-3 flex flex-col items-center transition-colors"
                   style={{
-                    background: floor === f.id ? PALETTE.amber : PALETTE.panel,
+                    background: floor === f.id ? AC.amber : PALETTE.panel,
                     color: floor === f.id ? "#1a1200" : PALETTE.text,
-                    border: `1px solid ${floor === f.id ? PALETTE.amber : PALETTE.grid}`,
+                    border: `1px solid ${floor === f.id ? AC.amber : PALETTE.grid}`,
                   }}
                 >
                   <span className="display-font font-semibold text-sm">{f.code}</span>
@@ -921,7 +1054,7 @@ function WayfindingPrototype() {
                 aspectRatio: "1100 / 1174",
                 background: PALETTE.panel,
                 border: `1px solid ${PALETTE.grid}`,
-                touchAction: mapActive ? "none" : "pan-y",
+                touchAction: mapActive && view.scale > 1 ? "none" : "pan-y",
               }}
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
@@ -946,8 +1079,8 @@ function WayfindingPrototype() {
 
               {!currentFloor.hasPhoto && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
-                  <Icon.ImageOff size={28} style={{ color: PALETTE.muted }} />
-                  <p className="text-sm whitespace-pre-line" style={{ color: PALETTE.muted }}>
+                  <Icon.ImageOff size={28} style={{ color: AC.muted }} />
+                  <p className="text-sm whitespace-pre-line" style={{ color: AC.muted }}>
                     {t.noPhoto(fl(currentFloor))}
                   </p>
                 </div>
@@ -976,9 +1109,25 @@ function WayfindingPrototype() {
                 // si applica anche al pin "sei qui", non solo a quello selezionato al momento.
                 const looksActive = isActive || isUserPos;
                 const size = isActive ? 30 : isUserPos ? 24 : anySelected ? 16 : 30;
-                const pinColor = isGotoTarget || isUserPos ? PALETTE.goto : loc.highlighted ? PALETTE.highlight : PALETTE.amber;
-                const pinColorSoft = isGotoTarget || isUserPos ? PALETTE.gotoSoft : loc.highlighted ? PALETTE.highlightSoft : PALETTE.amberSoft;
+                const pinColor = isGotoTarget || isUserPos ? AC.goto : loc.highlighted ? AC.highlight : AC.amber;
+                const pinColorSoft = isGotoTarget || isUserPos ? AC.gotoSoft : loc.highlighted ? AC.highlightSoft : AC.amberSoft;
                 const activeTextColor = isGotoTarget || isUserPos || loc.highlighted ? "#2a0a0a" : "#1a1200";
+
+                // Vicino ai bordi del riquadro, l'etichetta si "appoggia" verso l'interno
+                // invece di restare centrata sul pin, così non finisce mai fuori dall'area visibile.
+                const edgeMargin = 95;
+                let labelAnchor = "center"; // "center" | "left" | "right"
+                if (canvasSize.w) {
+                  if (p.x < edgeMargin) labelAnchor = "left";
+                  else if (p.x > canvasSize.w - edgeMargin) labelAnchor = "right";
+                }
+                const labelStyle =
+                  labelAnchor === "left"
+                    ? { left: 0, transform: "translateX(0)" }
+                    : labelAnchor === "right"
+                    ? { left: 0, transform: "translateX(-100%)" }
+                    : { left: 0, transform: "translateX(-50%)" };
+
                 return (
                   <button
                     key={loc.id}
@@ -986,13 +1135,44 @@ function WayfindingPrototype() {
                       e.stopPropagation();
                       selectLocation(loc.id);
                     }}
-                    className="absolute top-0 left-0 flex flex-col items-center group p-1.5 transition-all"
-                    style={{ transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform" }}
+                    className="absolute top-0 left-0 p-1.5"
+                    style={{
+                      transform: `translate(${p.x}px, ${p.y}px)`,
+                      willChange: "transform",
+                      zIndex: looksActive ? 20 : 10,
+                    }}
                   >
+                    <div
+                      className="rounded-full flex items-center justify-center transition-all hover:scale-110"
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        transform: "translate(-50%, -50%)",
+                        width: size,
+                        height: size,
+                        background: looksActive ? pinColor : "#0B1626",
+                        border: `${AC.border}px solid ${pinColor}`,
+                        boxShadow: looksActive ? `0 0 0 6px ${pinColorSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
+                        opacity: !looksActive && anySelected ? 0.7 : 1,
+                      }}
+                    >
+                      {(looksActive || !anySelected) && (
+                        <Icon.MapPin size={14 + AC.fontBoost} color={looksActive ? activeTextColor : pinColor} />
+                      )}
+                    </div>
+
                     {isUserPos && (
                       <span
-                        className="mono-font text-[9px] mb-1 px-2 py-0.5 rounded-full font-bold whitespace-nowrap flex items-center gap-1"
-                        style={{ background: PALETTE.goto, color: "#2a0a0a" }}
+                        className="mono-font px-2 py-0.5 rounded-full font-bold whitespace-nowrap flex items-center gap-1"
+                        style={{
+                          position: "absolute",
+                          top: -size / 2 - 22,
+                          background: AC.goto,
+                          color: "#2a0a0a",
+                          fontSize: 9 + AC.fontBoost,
+                          ...labelStyle,
+                        }}
                       >
                         <span
                           className="rounded-full"
@@ -1001,27 +1181,17 @@ function WayfindingPrototype() {
                         {t.youAreHere}
                       </span>
                     )}
-                    <div
-                      className="rounded-full flex items-center justify-center transition-all group-hover:scale-110"
-                      style={{
-                        width: size,
-                        height: size,
-                        background: looksActive ? pinColor : "#0B1626",
-                        border: `2px solid ${pinColor}`,
-                        boxShadow: looksActive ? `0 0 0 6px ${pinColorSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
-                        opacity: !looksActive && anySelected ? 0.7 : 1,
-                      }}
-                    >
-                      {(looksActive || !anySelected) && (
-                        <Icon.MapPin size={14} color={looksActive ? activeTextColor : pinColor} />
-                      )}
-                    </div>
+
                     <span
-                      className={looksActive ? "text-[10px] mt-1 px-1.5 py-0.5 rounded transition-opacity font-bold whitespace-nowrap" : "mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded transition-opacity"}
+                      className={looksActive ? "px-1.5 py-0.5 rounded transition-opacity font-bold whitespace-nowrap" : "mono-font px-1.5 py-0.5 rounded transition-opacity whitespace-nowrap"}
                       style={{
+                        position: "absolute",
+                        top: size / 2 + 4,
                         background: "#0B1626",
                         color: pinColor,
                         opacity: !looksActive && anySelected ? 0.55 : 1,
+                        fontSize: (looksActive ? 10 : 9) + AC.fontBoost,
+                        ...labelStyle,
                       }}
                     >
                       {looksActive ? loc.name : loc.code}
@@ -1036,7 +1206,7 @@ function WayfindingPrototype() {
                   <div
                     key={s.id}
                     className="absolute top-0 left-0 flex flex-col items-center"
-                    style={{ transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform" }}
+                    style={{ transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform", zIndex: 5 }}
                   >
                     <div className="flex items-center gap-1">
                       {directions.map((direction) => {
@@ -1053,24 +1223,24 @@ function WayfindingPrototype() {
                             style={{
                               width: 34,
                               height: 34,
-                              background: isActive ? "#3DDC97" : "#0B1626",
-                              border: "2px solid #3DDC97",
-                              boxShadow: isActive ? "0 0 0 6px #164B36" : "0 1px 6px rgba(0,0,0,0.5)",
+                              background: isActive ? AC.stair : "#0B1626",
+                              border: `${AC.border}px solid ${AC.stair}`,
+                              boxShadow: isActive ? `0 0 0 6px ${AC.stairSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
                             }}
                             title={`${s.label} → ${fl(FLOORS[targetFloor])}`}
                           >
                             {direction === 1 ? (
-                              <Icon.ArrowUpCircle size={15} color={isActive ? "#0B1626" : "#3DDC97"} />
+                              <Icon.ArrowUpCircle size={15 + AC.fontBoost} color={isActive ? "#0B1626" : AC.stair} />
                             ) : (
-                              <Icon.ArrowDownCircle size={15} color={isActive ? "#0B1626" : "#3DDC97"} />
+                              <Icon.ArrowDownCircle size={15 + AC.fontBoost} color={isActive ? "#0B1626" : AC.stair} />
                             )}
                           </button>
                         );
                       })}
                     </div>
                     <span
-                      className="mono-font text-[9px] mt-1 px-1.5 py-0.5 rounded"
-                      style={{ background: "#0B1626", color: "#3DDC97" }}
+                      className="mono-font mt-1 px-1.5 py-0.5 rounded"
+                      style={{ background: "#0B1626", color: AC.stair, fontSize: 9 + AC.fontBoost }}
                     >
                       {s.label.replace("Scala ", "")}
                     </span>
@@ -1082,7 +1252,7 @@ function WayfindingPrototype() {
                 <button
                   onClick={resetZoom}
                   className="absolute top-2 right-2 mono-font text-[10px] px-2.5 py-1.5 rounded-full"
-                  style={{ background: "rgba(11,22,38,0.85)", color: PALETTE.amber, border: `1px solid ${PALETTE.amber}` }}
+                  style={{ background: "rgba(11,22,38,0.85)", color: AC.amber, border: `1px solid ${AC.amber}` }}
                 >
                   {t.resetZoom}
                 </button>
@@ -1103,16 +1273,16 @@ function WayfindingPrototype() {
                 >
                   <span
                     className="mono-font text-xs px-4 py-2 rounded-full flex items-center gap-2"
-                    style={{ background: "rgba(11,22,38,0.9)", color: PALETTE.text, border: `1px solid ${PALETTE.amber}` }}
+                    style={{ background: "rgba(11,22,38,0.9)", color: PALETTE.text, border: `1px solid ${AC.amber}` }}
                   >
-                    <Icon.MapPin size={13} color={PALETTE.amber} />
+                    <Icon.MapPin size={13} color={AC.amber} />
                     {t.overlayTouch}
                   </span>
                 </button>
               )}
             </div>
             {(mapActive ? t.hintActive : overlayShown ? t.hintOverlayShown : t.hintIdle) && (
-              <p className="text-[11px] mt-1.5" style={{ color: PALETTE.muted }}>
+              <p className="text-[11px] mt-1.5" style={{ color: AC.muted }}>
                 {mapActive ? t.hintActive : overlayShown ? t.hintOverlayShown : t.hintIdle}
               </p>
             )}
@@ -1131,7 +1301,7 @@ function WayfindingPrototype() {
                 <div className="p-4" key={selectedId || "home"}>
                   {!selected ? (
                     <div className="fade-in">
-                      <div className="flex items-center gap-2 mb-4" style={{ color: PALETTE.amber }}>
+                      <div className="flex items-center gap-2 mb-4" style={{ color: AC.amber }}>
                         <Icon.Building2 size={16} />
                         <span className="mono-font text-[11px] uppercase tracking-wide">
                           Via Sciesa 4 · {fl(currentFloor)}
@@ -1143,9 +1313,9 @@ function WayfindingPrototype() {
                           style={{ background: "#122A22", border: "1px solid #245C45" }}
                         >
                           {selectedStairDirection === -1 ? (
-                            <Icon.ArrowDownCircle size={16} color="#3DDC97" />
+                            <Icon.ArrowDownCircle size={16} color={AC.stair} />
                           ) : (
-                            <Icon.ArrowUpCircle size={16} color="#3DDC97" />
+                            <Icon.ArrowUpCircle size={16} color={AC.stair} />
                           )}
                           <span className="text-xs" style={{ color: "#8FE8C8" }}>
                             {t.arrivedVia(STAIRS.find((s) => s.id === selectedStairId)?.label, selectedStairDirection, fl(currentFloor))}
@@ -1154,7 +1324,7 @@ function WayfindingPrototype() {
                       ) : (
                         <>
                           <h2 className="display-font text-lg font-semibold mb-1">{t.waitingScan}</h2>
-                          <p className="text-xs mb-4" style={{ color: PALETTE.muted }}>
+                          <p className="text-xs mb-4" style={{ color: AC.muted }}>
                             {t.waitingScanDesc}
                           </p>
                         </>
@@ -1169,15 +1339,15 @@ function WayfindingPrototype() {
                           >
                             <div>
                               <div className="text-sm font-medium">{loc.name}</div>
-                              <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
+                              <div className="mono-font text-[10px]" style={{ color: AC.muted }}>
                                 {loc.code} · {loc.time}
                               </div>
                             </div>
-                            <Icon.ArrowRight size={14} style={{ color: PALETTE.amber }} />
+                            <Icon.ArrowRight size={14} style={{ color: AC.amber }} />
                           </button>
                         ))}
                         {pinsOnFloor.length === 0 && (
-                          <p className="text-xs" style={{ color: PALETTE.muted }}>
+                          <p className="text-xs" style={{ color: AC.muted }}>
                             {t.noRoomsFloor}
                           </p>
                         )}
@@ -1188,11 +1358,11 @@ function WayfindingPrototype() {
                       <button
                         onClick={() => setSelectedId(null)}
                         className="flex items-center gap-1 mb-4 text-xs"
-                        style={{ color: PALETTE.muted }}
+                        style={{ color: AC.muted }}
                       >
                         <Icon.Home size={12} /> {t.backToMap}
                       </button>
-                      <div className="mono-font text-[11px] uppercase tracking-wide mb-1" style={{ color: PALETTE.amber }}>
+                      <div className="mono-font text-[11px] uppercase tracking-wide mb-1" style={{ color: AC.amber }}>
                         Via Sciesa 4 · {fl(currentFloor)}
                       </div>
                       <h2 className="display-font text-xl font-semibold mb-2 leading-tight">{selected.name}</h2>
@@ -1203,30 +1373,30 @@ function WayfindingPrototype() {
                         {selected.time}
                       </div>
                       <p className="text-sm font-medium mb-1">{selected.activity}</p>
-                      <p className="text-xs leading-relaxed mb-5" style={{ color: PALETTE.muted }}>
+                      <p className="text-xs leading-relaxed mb-5" style={{ color: AC.muted }}>
                         {selected.desc}
                       </p>
 
                       {selected.nextStopName && (
                         <div className="rounded-xl p-3" style={{ background: PALETTE.panelAlt, border: `1px solid ${PALETTE.grid}` }}>
-                          <div className="text-[10px] mb-1" style={{ color: PALETTE.muted }}>
+                          <div className="text-[10px] mb-1" style={{ color: AC.muted }}>
                             {t.nextStop}
                           </div>
                           {next ? (
                             <button onClick={() => selectLocation(next.id)} className="w-full flex items-center justify-between">
                               <div className="text-left">
                                 <div className="text-sm font-medium">{selected.nextStopName}</div>
-                                <div className="mono-font text-[10px]" style={{ color: PALETTE.muted }}>
+                                <div className="mono-font text-[10px]" style={{ color: AC.muted }}>
                                   {fl(FLOORS[next.floor])}
                                 </div>
                               </div>
-                              <Icon.ArrowRight size={16} style={{ color: PALETTE.amber }} />
+                              <Icon.ArrowRight size={16} style={{ color: AC.amber }} />
                             </button>
                           ) : (
                             <div className="text-sm font-medium">{selected.nextStopName}</div>
                           )}
                           {selected.nextStopComment && (
-                            <p className="text-xs mt-1.5" style={{ color: PALETTE.muted }}>
+                            <p className="text-xs mt-1.5" style={{ color: AC.muted }}>
                               {selected.nextStopComment}
                             </p>
                           )}
@@ -1240,6 +1410,47 @@ function WayfindingPrototype() {
           </div>
         </div>
       </div>
+
+      {showA11yPrompt && (
+        <div
+          className="fixed inset-0 flex items-center justify-center fade-in"
+          style={{ background: "rgba(0,0,0,0.5)", zIndex: 70 }}
+          onClick={() => setShowA11yPrompt(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-2xl p-5 mx-4"
+            style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}`, maxWidth: 320 }}
+          >
+            <div className="flex items-center gap-2 mb-3" style={{ color: a11yMode ? AC.amber : PALETTE.amber }}>
+              <Icon.Accessibility size={18} />
+              <span className="text-sm font-semibold">{t.a11yToggle}</span>
+            </div>
+            <p className="text-sm leading-relaxed mb-5" style={{ color: AC.muted }}>
+              {a11yMode ? t.a11yConfirmOff : t.a11yConfirmOn}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowA11yPrompt(false)}
+                className="text-xs px-3 py-2 rounded-lg"
+                style={{ color: AC.muted, border: `1px solid ${PALETTE.grid}` }}
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => {
+                  setA11yMode((v) => !v);
+                  setShowA11yPrompt(false);
+                }}
+                className="text-xs px-3 py-2 rounded-lg font-semibold"
+                style={{ background: AC.amber, color: "#1a1200" }}
+              >
+                {a11yMode ? t.deactivate : t.activate}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
