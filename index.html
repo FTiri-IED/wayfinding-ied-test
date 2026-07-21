@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Wayfinding · Via Sciesa 4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -866,14 +866,14 @@ function WayfindingPrototype() {
 
   return (
     <div
-      style={{ background: PALETTE.bg, color: PALETTE.text, fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: PALETTE.bg, color: PALETTE.text, fontFamily: "'DM Sans', sans-serif" }}
       className="min-h-screen w-full"
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
         @keyframes fadeSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeSlide 0.25s ease-out; }
-        .display-font { font-family: 'Space Grotesk', sans-serif; }
+        .display-font { font-family: 'DM Sans', sans-serif; }
         .mono-font { font-family: 'IBM Plex Mono', monospace; }
         ::-webkit-scrollbar { height: 6px; width: 6px; }
         ::-webkit-scrollbar-thumb { background: ${PALETTE.grid}; border-radius: 4px; }
@@ -1219,11 +1219,23 @@ function WayfindingPrototype() {
               {STAIRS.map((s) => {
                 const directions = floor === 0 ? [1] : floor === 2 ? [-1] : [1, -1];
                 const p = projectPoint(s.x, s.y);
+
+                // Quando ci sono due frecce affiancate (su+giù), la coppia è più larga
+                // di una sola: vicino ai bordi va "spinta" verso l'interno perché non
+                // sconfini fuori dal riquadro della mappa.
+                const groupWidth = directions.length === 2 ? 64 : 30;
+                let centerX = p.x;
+                if (canvasSize.w) {
+                  const half = groupWidth / 2;
+                  if (centerX - half < 2) centerX = half + 2;
+                  else if (centerX + half > canvasSize.w - 2) centerX = canvasSize.w - 2 - half;
+                }
+
                 return (
                   <div
                     key={s.id}
                     className="absolute top-0 left-0 flex flex-col items-center"
-                    style={{ transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform", zIndex: 5 }}
+                    style={{ transform: `translate(${centerX}px, ${p.y}px) translate(-50%, -50%)`, willChange: "transform", zIndex: 5 }}
                   >
                     <div className="flex items-center gap-1">
                       {directions.map((direction) => {
@@ -1238,8 +1250,8 @@ function WayfindingPrototype() {
                             }}
                             className="rounded-full flex items-center justify-center transition-transform hover:scale-110 p-1"
                             style={{
-                              width: 34,
-                              height: 34,
+                              width: 28,
+                              height: 28,
                               background: isActive ? AC.stair : "#0B1626",
                               border: `${AC.border}px solid ${AC.stair}`,
                               boxShadow: isActive ? `0 0 0 6px ${AC.stairSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
@@ -1247,9 +1259,9 @@ function WayfindingPrototype() {
                             title={`${s.label} → ${fl(FLOORS[targetFloor])}`}
                           >
                             {direction === 1 ? (
-                              <Icon.ArrowUpCircle size={15 + AC.fontBoost} color={isActive ? "#0B1626" : AC.stair} />
+                              <Icon.ArrowUpCircle size={13 + AC.fontBoost} color={isActive ? "#0B1626" : AC.stair} />
                             ) : (
-                              <Icon.ArrowDownCircle size={15 + AC.fontBoost} color={isActive ? "#0B1626" : AC.stair} />
+                              <Icon.ArrowDownCircle size={13 + AC.fontBoost} color={isActive ? "#0B1626" : AC.stair} />
                             )}
                           </button>
                         );
