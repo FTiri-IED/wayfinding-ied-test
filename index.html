@@ -559,7 +559,7 @@ function WayfindingPrototype() {
       noPhoto: (floorLabel) =>
         `Nessuna foto caricata per il ${floorLabel.toLowerCase()}.\nInvia la planimetria di questo piano per attivare i punti qui sopra.`,
       overlayTouch: "Tocca per interagire con la mappa",
-      hintActive: "Pizzica per ingrandire — i pin restano della stessa dimensione e seguono la posizione corretta.",
+      hintActive: "",
       hintOverlayShown: "Tocca ancora per attivare zoom e trascinamento.",
       hintIdle: "",
       resetZoom: "Reset zoom",
@@ -592,7 +592,7 @@ function WayfindingPrototype() {
       noPhoto: (floorLabel) =>
         `No photo uploaded yet for the ${floorLabel.toLowerCase()}.\nSend this floor's plan to activate the pins above.`,
       overlayTouch: "Tap to interact with the map",
-      hintActive: "Pinch to zoom — pins stay the same size and follow the correct position.",
+      hintActive: "",
       hintOverlayShown: "Tap again to enable zoom and panning.",
       hintIdle: "",
       resetZoom: "Reset zoom",
@@ -1269,7 +1269,7 @@ function WayfindingPrototype() {
                 <button
                   onClick={resetZoom}
                   className="absolute top-2 right-2 mono-font text-[10px] px-2.5 py-1.5 rounded-full"
-                  style={{ background: "rgba(11,22,38,0.85)", color: AC.amber, border: `1px solid ${AC.amber}` }}
+                  style={{ background: "rgba(11,22,38,0.85)", color: AC.amber, border: `1px solid ${AC.amber}`, zIndex: 100 }}
                 >
                   {t.resetZoom}
                 </button>
