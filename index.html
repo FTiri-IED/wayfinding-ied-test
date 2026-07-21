@@ -102,6 +102,11 @@ const Icon = {
       <path d="M13.76 17.5a5 5 0 0 0-6.88-6" />
     </svg>
   ),
+  ChevronDown: ({ size = 16, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  ),
 };
 
 
@@ -132,9 +137,9 @@ const FLOORS = [
 const LOCATIONS = [
   {
     id: "ingresso",
-    code: "PT-ING",
-    name: "Ingresso",
-    nameEn: "Entrance",
+    code: "ING-SCIESA",
+    name: "Ingresso Sciesa",
+    nameEn: "Sciesa Entrance",
     floor: 0,
     x: 31,
     y: 84,
@@ -146,9 +151,9 @@ const LOCATIONS = [
   },
   {
     id: "reception",
-    code: "PT-REC",
-    name: "Reception",
-    nameEn: "Reception",
+    code: "REC-SCIESA",
+    name: "Reception Sciesa",
+    nameEn: "Reception Sciesa",
     floor: 0,
     x: 40,
     y: 83,
@@ -370,8 +375,76 @@ const STAIRS = [
   { id: "scala-esterna", label: "Scala Esterna", x: 79, y: 16 },
 ];
 
+// Sedi IED Milano gestite da questa stessa app. Ogni sede ha la propria foto (se
+// disponibile), i propri piani, le proprie stanze e le proprie scale. Finché una
+// sede non ha una foto vera, "hasPhoto" resta false e i suoi dati sono solo
+// segnaposto minimi (giusto per poter già testare la ricerca e lo switch).
+const BUILDINGS = [
+  {
+    id: "sciesa",
+    name: "Via Amatore Sciesa 4",
+    floorImg: FLOOR0_IMG,
+    floors: FLOORS,
+    locations: LOCATIONS,
+    stairs: STAIRS,
+  },
+  {
+    id: "leoni",
+    name: "Via Pompeo Leoni 3",
+    floorImg: null,
+    floors: [{ id: 0, label: "Piano Terra", labelEn: "Ground Floor", code: "PT", hasPhoto: false }],
+    locations: [
+      {
+        id: "leoni-l1",
+        code: "L1",
+        name: "Aula L1",
+        nameEn: "Room L1",
+        floor: 0,
+        x: 50,
+        y: 50,
+        time: "",
+        activity: "Da configurare",
+        activityEn: "To be configured",
+        desc: "Aula di esempio: in attesa della foto della planimetria di Via Pompeo Leoni 3.",
+        descEn: "Example room: awaiting the floor plan photo for Via Pompeo Leoni 3.",
+      },
+    ],
+    stairs: [],
+  },
+  {
+    id: "bezzecca",
+    name: "Via Bezzecca 5",
+    floorImg: null,
+    floors: [{ id: 0, label: "Piano Terra", labelEn: "Ground Floor", code: "PT", hasPhoto: false }],
+    locations: [
+      {
+        id: "bezzecca-b1",
+        code: "B1",
+        name: "Aula B1",
+        nameEn: "Room B1",
+        floor: 0,
+        x: 50,
+        y: 50,
+        time: "",
+        activity: "Da configurare",
+        activityEn: "To be configured",
+        desc: "Aula di esempio: in attesa della foto della planimetria di Via Bezzecca 5.",
+        descEn: "Example room: awaiting the floor plan photo for Via Bezzecca 5.",
+      },
+    ],
+    stairs: [],
+  },
+];
+
+// Tutte le stanze di tutte le sedi insieme, con il riferimento alla sede — usato
+// solo dalla ricerca, che deve poter trovare "B1" anche mentre si sta guardando
+// la mappa di Via Sciesa 4.
+const ALL_LOCATIONS = BUILDINGS.flatMap((b) => b.locations.map((l) => ({ ...l, buildingId: b.id, buildingName: b.name })));
+
 function WayfindingPrototype() {
   const [floor, setFloor] = useState(0);
+  const [currentBuildingId, setCurrentBuildingId] = useState("sciesa");
+  const building = BUILDINGS.find((b) => b.id === currentBuildingId) || BUILDINGS[0];
   const [selectedId, setSelectedId] = useState(null);
   const [selectedStairId, setSelectedStairId] = useState(null);
   const [selectedStairDirection, setSelectedStairDirection] = useState(null);
@@ -380,6 +453,7 @@ function WayfindingPrototype() {
   const [lang, setLang] = useState("it"); // "it" | "en"
   const [a11yMode, setA11yMode] = useState(false);
   const [showA11yPrompt, setShowA11yPrompt] = useState(false);
+  const [showCampusMenu, setShowCampusMenu] = useState(false);
 
   // Palette Okabe-Ito (pensata per essere distinguibile in tutte le forme comuni di
   // daltonismo) usata quando la modalità accessibile è attiva, al posto dei colori normali.
@@ -411,7 +485,7 @@ function WayfindingPrototype() {
         fontBoost: 0,
       };
 
-  // --- Parametro "show-only" nell'URL dell'iframe: es. ?show-only=PT-S1,PT-S3,PT-REC
+  // --- Parametro "show-only" nell'URL dell'iframe: es. ?show-only=PT-S1,PT-S3,REC-SCIESA
   // Filtra quali AULE mostrare sulla mappa. Le scale non sono mai filtrate.
   // Se il parametro non è presente, si mostrano tutte le aule (comportamento di default).
   const [showOnlyCodes] = useState(() => {
@@ -490,6 +564,23 @@ function WayfindingPrototype() {
     };
   }, []);
 
+  // --- Parametro "building" nell'URL dell'iframe: es. ?building=leoni
+  // Apre direttamente la mappa su una sede specifica (id: "sciesa" | "leoni" | "bezzecca"),
+  // senza bisogno di passare anche da una stanza. Se è presente anche "goto" o
+  // "userPosition" su una stanza di UN'ALTRA sede, quelli hanno la priorità finale
+  // (sono più specifici: sanno anche in quale stanza esatta aprire la mappa).
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const b = params.get("building");
+      if (!b) return;
+      const match = BUILDINGS.find((bd) => bd.id.toLowerCase() === b.trim().toLowerCase());
+      if (match) setCurrentBuildingId(match.id);
+    } catch (e) {
+      // parametro assente o URL non valido
+    }
+  }, []);
+
   // --- Parametro "goto" nell'URL dell'iframe: es. ?goto=PT-S3
   // Seleziona automaticamente quella stanza all'apertura della pagina
   // (utile per i QR code fisici che devono portare dritti a una stanza specifica).
@@ -497,7 +588,7 @@ function WayfindingPrototype() {
   // da una normale selezione manuale.
   const [gotoCode, setGotoCode] = useState(null);
 
-  // --- Parametro "userPosition": es. ?userPosition=PT-REC
+  // --- Parametro "userPosition": es. ?userPosition=REC-SCIESA
   // Indica DOVE SI TROVA FISICAMENTE l'utente (QR fisico appeso in quella posizione).
   // Il pin resta sempre evidenziato in rosso con l'etichetta "Sei qui", anche se
   // l'utente clicca su altri pin per esplorare — si rimpicciolisce solo un po'.
@@ -510,15 +601,19 @@ function WayfindingPrototype() {
       if (!up) return;
       const code = up.trim().toUpperCase();
       setUserPositionCode(code);
-      // Se non c'è anche un "goto", orienta la mappa sul piano di dove si trova l'utente.
-      // Se c'è anche "goto", quello ha priorità nel decidere piano e pannello iniziali.
+      // Se non c'è anche un "goto", orienta la mappa sulla sede e il piano di dove si trova l'utente.
+      // Se c'è anche "goto", quello ha priorità nel decidere sede, piano e pannello iniziali.
       if (!params.get("goto")) {
-        const loc = LOCATIONS.find((l) => l.code.toUpperCase() === code);
-        if (loc) setFloor(loc.floor);
+        const loc = ALL_LOCATIONS.find((l) => l.code.toUpperCase() === code);
+        if (loc) {
+          if (loc.buildingId !== currentBuildingId) setCurrentBuildingId(loc.buildingId);
+          setFloor(loc.floor);
+        }
       }
     } catch (e) {
       // parametro assente o URL non valido
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -528,8 +623,9 @@ function WayfindingPrototype() {
       if (!goto) return;
       const code = goto.trim().toUpperCase();
       if (showOnlyCodes && !showOnlyCodes.includes(code)) return;
-      const loc = LOCATIONS.find((l) => l.code.toUpperCase() === code);
+      const loc = ALL_LOCATIONS.find((l) => l.code.toUpperCase() === code);
       if (!loc) return;
+      if (loc.buildingId !== currentBuildingId) setCurrentBuildingId(loc.buildingId);
       setFloor(loc.floor);
       setSelectedId(loc.id);
       setGotoCode(code);
@@ -547,7 +643,7 @@ function WayfindingPrototype() {
 
   const UI = {
     it: {
-      kicker: "Sede IED Milano - Via Amatore Sciesa 4",
+      kickerFor: (buildingName) => `Sede IED Milano - ${buildingName}`,
       title: "IED Milano - sede di via Sciesa",
       intro:
         "Questa pagina ti aiuta a raggiungere l'aula che ti interessa. Cerca una stanza, tocca un pin sulla mappa o scegli dall'elenco qui sotto per vedere orari e indicazioni.",
@@ -565,6 +661,9 @@ function WayfindingPrototype() {
       resetZoom: "Reset zoom",
       youAreHere: "Sei qui",
       a11yToggle: "Modalità accessibile",
+      currentCampus: "Sede attuale",
+      campusComingSoon: "Mappa in arrivo",
+      chooseCampus: "Scegli una sede",
       a11yConfirmOn: "Vuoi attivare la modalità accessibile? Userà colori più distinguibili per il daltonismo, bordi più spessi e niente animazioni.",
       a11yConfirmOff: "Vuoi disattivare la modalità accessibile?",
       cancel: "Annulla",
@@ -580,7 +679,7 @@ function WayfindingPrototype() {
         `Sei ${direction === -1 ? "sceso" : "salito"} da ${stairLabel} — ora sei al ${floorLabel.toLowerCase()}.`,
     },
     en: {
-      kicker: "IED Milano Campus - Via Amatore Sciesa 4",
+      kickerFor: (buildingName) => `IED Milano Campus - ${buildingName}`,
       title: "IED Milano - Via Sciesa Campus",
       intro:
         "This page helps you find your way to the room you're looking for. Search for a room, tap a pin on the map, or pick one from the list below to see times and directions.",
@@ -598,6 +697,9 @@ function WayfindingPrototype() {
       resetZoom: "Reset zoom",
       youAreHere: "You are here",
       a11yToggle: "Accessible mode",
+      currentCampus: "Current campus",
+      campusComingSoon: "Map coming soon",
+      chooseCampus: "Choose a campus",
       a11yConfirmOn: "Turn on accessible mode? It uses colours that are easier to distinguish for colour blindness, thicker borders, and no animations.",
       a11yConfirmOff: "Turn off accessible mode?",
       cancel: "Cancel",
@@ -688,8 +790,8 @@ function WayfindingPrototype() {
   };
 
   const VISIBLE_LOCATIONS = (showOnlyCodes
-    ? LOCATIONS.filter((l) => showOnlyCodes.includes(l.code.toUpperCase()))
-    : LOCATIONS
+    ? building.locations.filter((l) => showOnlyCodes.includes(l.code.toUpperCase()))
+    : building.locations
   )
     .map(mergeExternal)
     .filter((l) => !l.hiddenByExcel);
@@ -697,7 +799,7 @@ function WayfindingPrototype() {
 
   const searchResults =
     searchQuery.trim().length > 0
-      ? VISIBLE_LOCATIONS.filter(
+      ? ALL_LOCATIONS.filter(
           (l) =>
             l.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
             l.code.toLowerCase().includes(searchQuery.trim().toLowerCase())
@@ -881,6 +983,20 @@ function WayfindingPrototype() {
     setSelectedId(null);
   };
 
+  // Usata dalla ricerca globale: se il risultato appartiene a un'altra sede,
+  // passa prima a quella sede, poi seleziona la stanza come al solito.
+  const selectGlobalLocation = (loc) => {
+    playTapSound();
+    if (loc.buildingId && loc.buildingId !== currentBuildingId) {
+      setCurrentBuildingId(loc.buildingId);
+      setView({ scale: 1, x: 0, y: 0 });
+    }
+    setFloor(loc.floor);
+    setSelectedId(loc.id);
+    setSelectedStairId(null);
+    setSelectedStairDirection(null);
+  };
+
   const selected = VISIBLE_LOCATIONS.find((l) => l.id === selectedId) || null;
   // "Prossima tappa" ora arriva SOLO dall'Excel (colonne Nome_prossima_tappa / ID_prossima_tappa / Commento).
   // Se non sono compilate per questa stanza, semplicemente non c'è alcuna prossima tappa da mostrare.
@@ -889,7 +1005,7 @@ function WayfindingPrototype() {
       ? VISIBLE_LOCATIONS.find((l) => l.code.toUpperCase() === selected.nextStopCode) || null
       : null;
 
-  const currentFloor = FLOORS.find((f) => f.id === floor);
+  const currentFloor = building.floors.find((f) => f.id === floor);
   const pinsOnFloor = VISIBLE_LOCATIONS.filter((l) => l.floor === floor);
 
   return (
@@ -956,9 +1072,73 @@ function WayfindingPrototype() {
 
         {/* Header */}
         <div className="mb-5 md:mb-8">
-          <div className="flex items-center gap-2 mb-2 md:mb-3" style={{ color: AC.amber }}>
-            <Icon.ScanLine size={16} />
-            <span className="mono-font text-[10px] md:text-xs tracking-widest uppercase">{t.kicker}</span>
+          <div className="relative inline-block">
+            <button
+              onClick={() => setShowCampusMenu((v) => !v)}
+              className="flex items-center gap-2 mb-2 md:mb-3"
+              style={{ color: AC.amber }}
+            >
+              <Icon.Building2 size={16} />
+              <span className="mono-font text-[10px] md:text-xs tracking-widest uppercase">{t.kickerFor(building.name)}</span>
+              <Icon.ChevronDown size={13} style={{ opacity: 0.7 }} />
+            </button>
+
+            {showCampusMenu && (
+              <>
+                <div className="fixed inset-0" style={{ zIndex: 55 }} onClick={() => setShowCampusMenu(false)} />
+                <div
+                  className="absolute left-0 top-full mt-1 rounded-xl overflow-hidden fade-in"
+                  style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}`, zIndex: 56, minWidth: 280 }}
+                >
+                  <div className="px-3 py-2 mono-font text-[10px] uppercase tracking-wide" style={{ color: AC.muted, borderBottom: `1px solid ${PALETTE.grid}` }}>
+                    {t.chooseCampus}
+                  </div>
+                  {BUILDINGS.map((b) => {
+                    const isCurrent = b.id === currentBuildingId;
+
+                    const content = (
+                      <>
+                        <span className={isCurrent ? "font-semibold" : ""}>{b.name}</span>
+                        {isCurrent && (
+                          <span className="mono-font text-[9px]" style={{ color: AC.muted }}>
+                            {t.currentCampus}
+                          </span>
+                        )}
+                      </>
+                    );
+                    const rowStyle = {
+                      color: isCurrent ? AC.amber : PALETTE.text,
+                      cursor: isCurrent ? "default" : "pointer",
+                      borderBottom: `1px solid ${PALETTE.grid}`,
+                    };
+
+                    if (isCurrent) {
+                      return (
+                        <div key={b.id} className="flex items-center justify-between px-3 py-2.5 text-sm" style={rowStyle}>
+                          {content}
+                        </div>
+                      );
+                    }
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => {
+                          setCurrentBuildingId(b.id);
+                          setFloor(0);
+                          setSelectedId(null);
+                          setView({ scale: 1, x: 0, y: 0 });
+                          setShowCampusMenu(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2.5 text-sm"
+                        style={rowStyle}
+                      >
+                        {content}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
           <h1
             className="display-font text-2xl md:text-4xl font-semibold mb-2 md:mb-3 leading-tight"
@@ -1035,26 +1215,39 @@ function WayfindingPrototype() {
                   style={{ background: PALETTE.panel, border: `1px solid ${PALETTE.grid}`, zIndex: 40 }}
                 >
                   {searchResults.length > 0 ? (
-                    searchResults.map((loc) => (
-                      <button
-                        key={loc.id}
-                        onMouseDown={() => {
-                          selectLocation(loc.id);
-                          setSearchQuery(loc.name);
-                          setSearchOpen(false);
-                        }}
-                        className="w-full text-left px-3 py-2.5 flex items-center justify-between"
-                        style={{ borderBottom: `1px solid ${PALETTE.grid}` }}
-                      >
-                        <div>
-                          <div className="text-sm font-medium">{loc.name}</div>
-                          <div className="mono-font text-[10px]" style={{ color: AC.muted }}>
-                            {loc.code} · {fl(FLOORS[loc.floor])}
+                    searchResults.map((loc) => {
+                      const locBuilding = BUILDINGS.find((b) => b.id === loc.buildingId) || building;
+                      const locFloorObj = locBuilding.floors.find((f) => f.id === loc.floor);
+                      const sameBuilding = locBuilding.id === currentBuildingId;
+                      const sameFloor = sameBuilding && loc.floor === floor;
+                      return (
+                        <button
+                          key={loc.id}
+                          onMouseDown={() => {
+                            selectGlobalLocation(loc);
+                            setSearchQuery(loc.name);
+                            setSearchOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2.5 flex items-center justify-between"
+                          style={{ borderBottom: `1px solid ${PALETTE.grid}` }}
+                        >
+                          <div>
+                            <div className="text-sm font-medium">{loc.name}</div>
+                            <div className="mono-font text-[10px]">
+                              <span style={{ color: AC.muted }}>{loc.code} · </span>
+                              <span style={{ color: sameBuilding ? AC.amber : AC.muted }}>{locBuilding.name}</span>
+                              {locFloorObj && (
+                                <>
+                                  <span style={{ color: AC.muted }}> · </span>
+                                  <span style={{ color: sameFloor ? AC.amber : AC.muted }}>{fl(locFloorObj)}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <Icon.MapPin size={14} color={AC.amber} />
-                      </button>
-                    ))
+                          <Icon.MapPin size={14} color={AC.amber} />
+                        </button>
+                      );
+                    })
                   ) : (
                     <div className="px-3 py-2.5 text-sm" style={{ color: AC.muted }}>
                       {t.noResults}
@@ -1066,7 +1259,7 @@ function WayfindingPrototype() {
 
             {/* floor tabs */}
             <div className="flex gap-2 mb-3">
-              {FLOORS.map((f) => (
+              {building.floors.map((f) => (
                 <button
                   key={f.id}
                   onClick={() => {
@@ -1111,7 +1304,7 @@ function WayfindingPrototype() {
               <div
                 className="absolute inset-0"
                 style={{
-                  backgroundImage: currentFloor.hasPhoto ? `url(${FLOOR0_IMG})` : "none",
+                  backgroundImage: currentFloor.hasPhoto ? `url(${building.floorImg})` : "none",
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                   transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
@@ -1244,7 +1437,7 @@ function WayfindingPrototype() {
                   </button>
                 );
               })}
-              {STAIRS.map((s) => {
+              {building.stairs.map((s) => {
                 const directions = floor === 0 ? [1] : floor === 2 ? [-1] : [1, -1];
                 const p = projectPoint(s.x, s.y);
 
@@ -1284,7 +1477,7 @@ function WayfindingPrototype() {
                               border: `${AC.border}px solid ${AC.stair}`,
                               boxShadow: isActive ? `0 0 0 6px ${AC.stairSoft}` : "0 1px 6px rgba(0,0,0,0.5)",
                             }}
-                            title={`${s.label} → ${fl(FLOORS[targetFloor])}`}
+                            title={`${s.label} → ${fl(building.floors[targetFloor])}`}
                           >
                             {direction === 1 ? (
                               <Icon.ArrowUpCircle size={13 + AC.fontBoost} color={isActive ? "#0B1626" : AC.stair} />
@@ -1361,7 +1554,7 @@ function WayfindingPrototype() {
                       <div className="flex items-center gap-2 mb-4" style={{ color: AC.amber }}>
                         <Icon.Building2 size={16} />
                         <span className="mono-font text-[11px] uppercase tracking-wide">
-                          Via Sciesa 4 · {fl(currentFloor)}
+                          {building.name} · {fl(currentFloor)}
                         </span>
                       </div>
                       {selectedStairId ? (
@@ -1375,7 +1568,7 @@ function WayfindingPrototype() {
                             <Icon.ArrowUpCircle size={16} color={AC.stair} />
                           )}
                           <span className="text-xs" style={{ color: "#8FE8C8" }}>
-                            {t.arrivedVia(STAIRS.find((s) => s.id === selectedStairId)?.label, selectedStairDirection, fl(currentFloor))}
+                            {t.arrivedVia(building.stairs.find((s) => s.id === selectedStairId)?.label, selectedStairDirection, fl(currentFloor))}
                           </span>
                         </div>
                       ) : (
@@ -1420,7 +1613,7 @@ function WayfindingPrototype() {
                         <Icon.Home size={12} /> {t.backToMap}
                       </button>
                       <div className="mono-font text-[11px] uppercase tracking-wide mb-1" style={{ color: AC.amber }}>
-                        Via Sciesa 4 · {fl(currentFloor)}
+                        {building.name} · {fl(currentFloor)}
                       </div>
                       <h2 className="display-font text-xl font-semibold mb-2 leading-tight">{selected.name}</h2>
                       <div
@@ -1444,7 +1637,7 @@ function WayfindingPrototype() {
                               <div className="text-left">
                                 <div className="text-sm font-medium">{selected.nextStopName}</div>
                                 <div className="mono-font text-[10px]" style={{ color: AC.muted }}>
-                                  {fl(FLOORS[next.floor])}
+                                  {fl(building.floors[next.floor])}
                                 </div>
                               </div>
                               <Icon.ArrowRight size={16} style={{ color: AC.amber }} />
