@@ -644,7 +644,7 @@ function WayfindingPrototype() {
 
   const UI = {
     it: {
-      kickerFor: (buildingName) => `Sede IED Milano - ${buildingName}`,
+      kickerFor: (buildingName) => `IED Milano - ${buildingName}`,
       titleFor: (buildingName) => `IED Milano - sede di ${buildingName}`,
       intro:
         "Questa pagina ti aiuta a raggiungere l'aula che ti interessa. Cerca una stanza, tocca un pin sulla mappa o scegli dall'elenco qui sotto per vedere orari e indicazioni.",
@@ -665,6 +665,8 @@ function WayfindingPrototype() {
       currentCampus: "Sede attuale",
       campusComingSoon: "Mappa in arrivo",
       chooseCampus: "Scegli una sede",
+      legendRooms: "Aule",
+      legendStairs: "Scale",
       a11yConfirmOn: "Vuoi attivare la modalità accessibile? Userà colori più distinguibili per il daltonismo, bordi più spessi e niente animazioni.",
       a11yConfirmOff: "Vuoi disattivare la modalità accessibile?",
       cancel: "Annulla",
@@ -701,6 +703,8 @@ function WayfindingPrototype() {
       currentCampus: "Current campus",
       campusComingSoon: "Map coming soon",
       chooseCampus: "Choose a campus",
+      legendRooms: "Rooms",
+      legendStairs: "Stairs",
       a11yConfirmOn: "Turn on accessible mode? It uses colours that are easier to distinguish for colour blindness, thicker borders, and no animations.",
       a11yConfirmOff: "Turn off accessible mode?",
       cancel: "Cancel",
@@ -718,6 +722,9 @@ function WayfindingPrototype() {
   };
   const t = UI[lang];
   const fl = (floorObj) => (lang === "en" ? floorObj.labelEn : floorObj.label);
+  // Il codice "PT-S3" è una chiave interna; il nome ufficiale della stanza è solo "S3".
+  // Usato per l'etichetta piccola non selezionata sulla mappa (non per la ricerca/elenco).
+  const displayCode = (code) => code.replace(/^PT-/i, "");
 
   // Riga di impostazioni applicabile alla sede corrente: prima quella con "Sede"
   // che combacia (es. "bezzecca"), altrimenti quella senza "Sede" (default per tutte).
@@ -1034,6 +1041,13 @@ function WayfindingPrototype() {
 
   const currentFloor = building.floors.find((f) => f.id === floor);
   const pinsOnFloor = VISIBLE_LOCATIONS.filter((l) => l.floor === floor);
+
+  // Stanze disattivate dall'Excel (colonna "Nascosta"): non selezionabili, non in
+  // ricerca, ma restano visibili sulla mappa come solo nome in grigio, senza pin,
+  // così chi guarda la mappa capisce che quella stanza esiste ma non è disponibile ora.
+  const disabledOnFloor = building.locations
+    .map(mergeExternal)
+    .filter((l) => l.hiddenByExcel && l.floor === floor);
 
   return (
     <div
@@ -1460,10 +1474,51 @@ function WayfindingPrototype() {
                           ...labelStyle,
                         }}
                       >
-                        {looksActive ? loc.name : loc.code}
+                        {looksActive ? loc.name : displayCode(loc.code)}
                       </span>
                     )}
                   </button>
+                );
+              })}
+
+              {/* Stanze disattivate dall'Excel: solo nome in grigio, nessun pin, non cliccabili. */}
+              {disabledOnFloor.map((loc) => {
+                const p = projectPoint(loc.x, loc.y);
+                const edgeMargin = 95;
+                let labelAnchor = "center";
+                if (canvasSize.w) {
+                  if (p.x < edgeMargin) labelAnchor = "left";
+                  else if (p.x > canvasSize.w - edgeMargin) labelAnchor = "right";
+                }
+                const labelStyle =
+                  labelAnchor === "left"
+                    ? { left: 0, transform: "translateX(0)" }
+                    : labelAnchor === "right"
+                    ? { left: 0, transform: "translateX(-100%)" }
+                    : { left: 0, transform: "translateX(-50%)" };
+                return (
+                  <div
+                    key={loc.id}
+                    className="absolute top-0 left-0"
+                    style={{ transform: `translate(${p.x}px, ${p.y}px)`, willChange: "transform", zIndex: 8 }}
+                  >
+                    {view.scale >= 1.3 && (
+                      <span
+                        className="mono-font px-1.5 py-0.5 rounded whitespace-nowrap"
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          background: "rgba(11,22,38,0.7)",
+                          color: AC.muted,
+                          opacity: 0.7,
+                          fontSize: 9 + AC.fontBoost,
+                          ...labelStyle,
+                        }}
+                      >
+                        {loc.name}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
               {building.stairs.map((s) => {
@@ -1472,10 +1527,12 @@ function WayfindingPrototype() {
 
                 // Quando ci sono due frecce affiancate (su+giù), la coppia è più larga
                 // di una sola: vicino ai bordi va "spinta" verso l'interno perché non
-                // sconfini fuori dal riquadro della mappa.
+                // sconfini fuori dal riquadro della mappa — ma SOLO quando non sei
+                // zoomato: una volta ingrandita la mappa, la posizione proiettata è
+                // già quella corretta e non va più "corretta" verso il bordo.
                 const groupWidth = directions.length === 2 ? 64 : 30;
                 let centerX = p.x;
-                if (canvasSize.w) {
+                if (canvasSize.w && view.scale <= 1.01) {
                   const half = groupWidth / 2;
                   if (centerX - half < 2) centerX = half + 2;
                   else if (centerX + half > canvasSize.w - 2) centerX = canvasSize.w - 2 - half;
@@ -1565,6 +1622,22 @@ function WayfindingPrototype() {
                 {mapActive ? t.hintActive : overlayShown ? t.hintOverlayShown : t.hintIdle}
               </p>
             )}
+
+            {/* Piccola legenda: cosa indicano i due simboli sulla mappa */}
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-1.5">
+                <Icon.MapPin size={13} color={AC.amber} />
+                <span className="text-[11px]" style={{ color: AC.muted }}>
+                  {t.legendRooms}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Icon.ArrowUpCircle size={13} color={AC.stair} />
+                <span className="text-[11px]" style={{ color: AC.muted }}>
+                  {t.legendStairs}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* PHONE MOCK */}
