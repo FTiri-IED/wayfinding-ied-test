@@ -1645,17 +1645,21 @@ function WayfindingPrototype() {
               </p>
             )}
 
-            {/* Piccola legenda: cosa indicano i due simboli sulla mappa */}
-            <div className="flex items-center gap-4 mt-2">
-              <div className="flex items-center gap-1.5">
-                <Icon.MapPin size={13} color={AC.amber} />
-                <span className="text-[11px]" style={{ color: AC.muted }}>
+            {/* Piccola legenda: cosa indicano i due simboli sulla mappa.
+                Le icone hanno una dimensione fissa in pixel, quindi ne uso due versioni
+                (piccola su mobile, più grande su desktop) invece di una sola scalata via CSS. */}
+            <div className="flex items-center gap-5 md:gap-7 mt-2.5 md:mt-4">
+              <div className="flex items-center gap-2 md:gap-2.5">
+                <Icon.MapPin size={14} color={AC.amber} className="md:hidden" />
+                <Icon.MapPin size={16} color={AC.amber} className="hidden md:block" />
+                <span className="text-xs md:text-sm" style={{ color: AC.muted }}>
                   {t.legendRooms}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Icon.ArrowUpCircle size={13} color={AC.stair} />
-                <span className="text-[11px]" style={{ color: AC.muted }}>
+              <div className="flex items-center gap-2 md:gap-2.5">
+                <Icon.ArrowUpCircle size={14} color={AC.stair} className="md:hidden" />
+                <Icon.ArrowUpCircle size={16} color={AC.stair} className="hidden md:block" />
+                <span className="text-xs md:text-sm" style={{ color: AC.muted }}>
                   {t.legendStairs}
                 </span>
               </div>
