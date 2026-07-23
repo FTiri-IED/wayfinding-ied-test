@@ -965,6 +965,31 @@ function WayfindingPrototype() {
     zoomAt(x, y, scaleDelta);
   };
 
+  // --- Trascinamento con il mouse (desktop): click e tieni premuto per spostarti
+  // nella mappa zoomata, come su Google Maps. Funziona solo quando sei zoomato,
+  // per non interferire con un normale click sui pin quando la mappa è a riposo.
+  const mouseDragRef = useRef(null);
+
+  const onMouseDown = (e) => {
+    if (isTouchDevice || !mapActive || view.scale <= 1.01) return;
+    mouseDragRef.current = { x: e.clientX, y: e.clientY };
+
+    const onMouseMove = (moveEvent) => {
+      if (!mouseDragRef.current) return;
+      const dx = moveEvent.clientX - mouseDragRef.current.x;
+      const dy = moveEvent.clientY - mouseDragRef.current.y;
+      mouseDragRef.current = { x: moveEvent.clientX, y: moveEvent.clientY };
+      setView((prev) => clampView({ scale: prev.scale, x: prev.x + dx, y: prev.y + dy }));
+    };
+    const onMouseUp = () => {
+      mouseDragRef.current = null;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
   // Converte la posizione in percentuale (x%,y%) di un pin nella posizione
   // reale in pixel dentro il riquadro, tenendo conto dello zoom/pan corrente.
   const projectPoint = (xPct, yPct) => {
@@ -1334,11 +1359,13 @@ function WayfindingPrototype() {
                 background: PALETTE.panel,
                 border: `1px solid ${PALETTE.grid}`,
                 touchAction: mapActive && view.scale > 1 ? "none" : "pan-y",
+                cursor: !isTouchDevice && mapActive && view.scale > 1.01 ? "grab" : "default",
               }}
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
               onWheel={onWheel}
+              onMouseDown={onMouseDown}
               onClick={() => {
                 if (!mapActive && !overlayShown) setOverlayShown(true);
               }}
@@ -1414,6 +1441,7 @@ function WayfindingPrototype() {
                       e.stopPropagation();
                       selectLocation(loc.id);
                     }}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="absolute top-0 left-0 p-1.5"
                     style={{
                       transform: `translate(${p.x}px, ${p.y}px)`,
@@ -1481,21 +1509,11 @@ function WayfindingPrototype() {
                 );
               })}
 
-              {/* Stanze disattivate dall'Excel: solo nome in grigio, nessun pin, non cliccabili. */}
+              {/* Stanze disattivate dall'Excel: solo nome in grigio, nessun pin, non cliccabili.
+                  A differenza dei pin attivi, l'etichetta resta sempre centrata sul punto reale:
+                  non c'è bisogno che "eviti" i bordi, dato che non è un elemento con cui si interagisce. */}
               {disabledOnFloor.map((loc) => {
                 const p = projectPoint(loc.x, loc.y);
-                const edgeMargin = 95;
-                let labelAnchor = "center";
-                if (canvasSize.w) {
-                  if (p.x < edgeMargin) labelAnchor = "left";
-                  else if (p.x > canvasSize.w - edgeMargin) labelAnchor = "right";
-                }
-                const labelStyle =
-                  labelAnchor === "left"
-                    ? { left: 0, transform: "translateX(0)" }
-                    : labelAnchor === "right"
-                    ? { left: 0, transform: "translateX(-100%)" }
-                    : { left: 0, transform: "translateX(-50%)" };
                 return (
                   <div
                     key={loc.id}
@@ -1504,15 +1522,18 @@ function WayfindingPrototype() {
                   >
                     {view.scale >= 1.3 && (
                       <span
-                        className="mono-font px-1.5 py-0.5 rounded whitespace-nowrap"
+                        className="mono-font px-1.5 py-1 rounded text-center"
                         style={{
                           position: "absolute",
                           top: -8,
+                          left: 0,
+                          transform: "translateX(-50%)",
+                          width: 90,
+                          lineHeight: 1.25,
                           background: "rgba(11,22,38,0.7)",
                           color: AC.muted,
                           opacity: 0.7,
                           fontSize: 9 + AC.fontBoost,
-                          ...labelStyle,
                         }}
                       >
                         {loc.name}
@@ -1555,6 +1576,7 @@ function WayfindingPrototype() {
                               e.stopPropagation();
                               goToStair(s, targetFloor, direction);
                             }}
+                            onMouseDown={(e) => e.stopPropagation()}
                             className="rounded-full flex items-center justify-center transition-transform hover:scale-110 p-1"
                             style={{
                               width: 28,
