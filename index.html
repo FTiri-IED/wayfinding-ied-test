@@ -1704,11 +1704,13 @@ function WayfindingPrototype() {
                           className="rounded-lg p-2.5 mb-4 flex items-center gap-2"
                           style={{ background: "#122A22", border: "1px solid #245C45" }}
                         >
-                          {selectedStairDirection === -1 ? (
-                            <Icon.ArrowDownCircle size={16} color={AC.stair} />
-                          ) : (
-                            <Icon.ArrowUpCircle size={16} color={AC.stair} />
-                          )}
+                          <span style={{ flexShrink: 0, width: 16, height: 16, display: "inline-flex" }}>
+                            {selectedStairDirection === -1 ? (
+                              <Icon.ArrowDownCircle size={16} color={AC.stair} />
+                            ) : (
+                              <Icon.ArrowUpCircle size={16} color={AC.stair} />
+                            )}
+                          </span>
                           <span className="text-xs" style={{ color: "#8FE8C8" }}>
                             {t.arrivedVia(building.stairs.find((s) => s.id === selectedStairId)?.label, selectedStairDirection, fl(currentFloor))}
                           </span>
