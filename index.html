@@ -1656,15 +1656,23 @@ function WayfindingPrototype() {
                 (piccola su mobile, più grande su desktop) invece di una sola scalata via CSS. */}
             <div className="flex items-center gap-5 md:gap-7 mt-2.5 md:mt-4">
               <div className="flex items-center gap-2 md:gap-2.5">
-                <Icon.MapPin size={14} color={AC.amber} className="legend-icon-mobile" />
-                <Icon.MapPin size={16} color={AC.amber} className="legend-icon-desktop" />
+                <span className="legend-icon-mobile">
+                  <Icon.MapPin size={14} color={AC.amber} />
+                </span>
+                <span className="legend-icon-desktop">
+                  <Icon.MapPin size={16} color={AC.amber} />
+                </span>
                 <span className="text-xs md:text-sm" style={{ color: AC.muted }}>
                   {t.legendRooms}
                 </span>
               </div>
               <div className="flex items-center gap-2 md:gap-2.5">
-                <Icon.ArrowUpCircle size={14} color={AC.stair} className="legend-icon-mobile" />
-                <Icon.ArrowUpCircle size={16} color={AC.stair} className="legend-icon-desktop" />
+                <span className="legend-icon-mobile">
+                  <Icon.ArrowUpCircle size={14} color={AC.stair} />
+                </span>
+                <span className="legend-icon-desktop">
+                  <Icon.ArrowUpCircle size={16} color={AC.stair} />
+                </span>
                 <span className="text-xs md:text-sm" style={{ color: AC.muted }}>
                   {t.legendStairs}
                 </span>
