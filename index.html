@@ -143,7 +143,7 @@ const LOCATIONS = [
     floor: 0,
     x: 31,
     y: 84,
-    time: "09:00 – 13:00",
+    time: "",
     activity: "Ingresso principale dell'edificio",
     activityEn: "Main building entrance",
     desc: "L'androne d'ingresso, tra la Scala A e la Reception.",
@@ -157,7 +157,7 @@ const LOCATIONS = [
     floor: 0,
     x: 40,
     y: 83,
-    time: "09:00 – 09:30",
+    time: "",
     activity: "Accoglienza e registrazione badge",
     activityEn: "Welcome and badge registration",
     desc: "Il punto di partenza del percorso. Qui ritiri il badge e la mappa cartacea dei laboratori.",
@@ -171,7 +171,7 @@ const LOCATIONS = [
     floor: 0,
     x: 42,
     y: 68,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio making e stampa 3D",
     activityEn: "Making and 3D printing workshop",
     desc: "Si progetta un piccolo oggetto e lo si vede prendere forma sulla stampante 3D.",
@@ -185,7 +185,7 @@ const LOCATIONS = [
     floor: 0,
     x: 42,
     y: 60,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio di animazione digitale",
     activityEn: "Digital animation workshop",
     desc: "Si creano brevi animazioni frame-by-frame con strumenti digitali di base.",
@@ -199,7 +199,7 @@ const LOCATIONS = [
     floor: 0,
     x: 42,
     y: 52,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio di robotica educativa",
     activityEn: "Educational robotics workshop",
     desc: "Si assembla un piccolo robot e lo si programma per seguire un percorso semplice.",
@@ -213,7 +213,7 @@ const LOCATIONS = [
     floor: 0,
     x: 42,
     y: 40,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio scientifico",
     activityEn: "Science workshop",
     desc: "Piccoli esperimenti pratici a tema scienze, in una delle sale più raccolte dell'edificio.",
@@ -227,7 +227,7 @@ const LOCATIONS = [
     floor: 0,
     x: 65,
     y: 45,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio di grafica digitale",
     activityEn: "Digital graphics workshop",
     desc: "Si sperimenta con strumenti di disegno e grafica digitale su computer.",
@@ -241,7 +241,7 @@ const LOCATIONS = [
     floor: 0,
     x: 78,
     y: 40,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio di suono e musica digitale",
     activityEn: "Sound and digital music workshop",
     desc: "Si registrano e montano brevi tracce audio con strumenti digitali di base.",
@@ -255,7 +255,7 @@ const LOCATIONS = [
     floor: 0,
     x: 88,
     y: 50,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio di editing video",
     activityEn: "Video editing workshop",
     desc: "Si montano brevi clip video girate durante la giornata con software semplici.",
@@ -269,7 +269,7 @@ const LOCATIONS = [
     floor: 0,
     x: 90,
     y: 18,
-    time: "10:45 – 12:00",
+    time: "",
     activity: "Laboratorio di coding",
     activityEn: "Coding workshop",
     desc: "Si creano piccoli progetti di programmazione a blocchi e si condividono con il gruppo.",
@@ -283,7 +283,7 @@ const LOCATIONS = [
     floor: 0,
     x: 66,
     y: 15,
-    time: "09:45 – 10:30",
+    time: "",
     activity: "Sessione introduttiva parallela",
     activityEn: "Parallel introductory session",
     desc: "Seconda aula per l'introduzione, per chi non trova posto in Aula Magna.",
@@ -297,7 +297,7 @@ const LOCATIONS = [
     floor: 0,
     x: 42,
     y: 15,
-    time: "09:45 – 10:30",
+    time: "",
     activity: "Apertura e presentazione della giornata",
     activityEn: "Opening and presentation of the day",
     desc: "Introduzione ai laboratori e alle attività della giornata, con tutti i partecipanti.",
@@ -311,7 +311,7 @@ const LOCATIONS = [
     floor: 0,
     x: 10,
     y: 68,
-    time: "09:00 – 13:00",
+    time: "",
     activity: "Punto informazioni e segreteria",
     activityEn: "Information and administration point",
     desc: "Per qualsiasi dubbio organizzativo durante la giornata, la segreteria è qui.",
@@ -325,7 +325,7 @@ const LOCATIONS = [
     floor: 0,
     x: 10,
     y: 42,
-    time: "09:00 – 13:00",
+    time: "",
     activity: "Spazio docenti area artistica",
     activityEn: "Faculty space, visual arts area",
     desc: "Secondo ufficio dei docenti di arti visive, adiacente al primo.",
@@ -339,7 +339,7 @@ const LOCATIONS = [
     floor: 0,
     x: 10,
     y: 30,
-    time: "09:00 – 13:00",
+    time: "",
     activity: "Spazio docenti area artistica",
     activityEn: "Faculty space, visual arts area",
     desc: "Ufficio dei docenti di arti visive, sul lato ovest dell'edificio verso il cortile.",
@@ -353,7 +353,7 @@ const LOCATIONS = [
     floor: 0,
     x: 51,
     y: 83,
-    time: "09:00 – 13:00",
+    time: "",
     activity: "Punto informazioni su comunicazione ed eventi",
     activityEn: "Information point for communication and events",
     desc: "Adiacente alla reception, sulla destra: qui trovi il team comunicazione dell'edificio.",
@@ -1528,7 +1528,7 @@ function WayfindingPrototype() {
                           top: -8,
                           left: 0,
                           transform: "translateX(-50%)",
-                          width: 90,
+                          maxWidth: 110,
                           lineHeight: 1.25,
                           background: "rgba(11,22,38,0.7)",
                           color: AC.muted,
@@ -1714,7 +1714,7 @@ function WayfindingPrototype() {
                             <div>
                               <div className="text-sm font-medium">{loc.name}</div>
                               <div className="mono-font text-[10px]" style={{ color: AC.muted }}>
-                                {loc.code} · {loc.time}
+                                {loc.code}{loc.time ? ` · ${loc.time}` : ""}
                               </div>
                             </div>
                             <Icon.ArrowRight size={14} style={{ color: AC.amber }} />
@@ -1740,13 +1740,15 @@ function WayfindingPrototype() {
                         {building.name} · {fl(currentFloor)}
                       </div>
                       <h2 className="display-font text-xl font-semibold mb-2 leading-tight">{selected.name}</h2>
-                      <div
-                        className="inline-block mono-font text-[10px] px-2 py-1 rounded mb-3"
-                        style={{ background: PALETTE.panelAlt, color: PALETTE.text }}
-                      >
-                        {selected.time}
-                      </div>
-                      <p className="text-sm font-medium mb-1">{selected.activity}</p>
+                      {selected.time && (
+                        <div
+                          className="inline-block mono-font text-[10px] px-2 py-1 rounded mb-3"
+                          style={{ background: PALETTE.panelAlt, color: PALETTE.text }}
+                        >
+                          {selected.time}
+                        </div>
+                      )}
+                      <p className="text-base font-semibold mb-1">{selected.activity}</p>
                       <p className="text-xs leading-relaxed mb-5" style={{ color: AC.muted }}>
                         {selected.desc}
                       </p>
