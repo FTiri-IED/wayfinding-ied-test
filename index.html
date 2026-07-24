@@ -50,11 +50,6 @@ const Icon = {
       <path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01" />
     </svg>
   ),
-  ScanLine: ({ size = 16, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 12h10" />
-    </svg>
-  ),
   ImageOff: ({ size = 16, color = "currentColor" }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m2 2 20 20" /><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83" /><path d="M13.5 13.5 21 21" />
@@ -79,18 +74,6 @@ const Icon = {
   X: ({ size = 16, color = "currentColor" }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-    </svg>
-  ),
-  Maximize: ({ size = 16, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
-      <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-    </svg>
-  ),
-  Minimize: ({ size = 16, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 3v3a2 2 0 0 1-2 2H3" /><path d="M21 8h-3a2 2 0 0 1-2-2V3" />
-      <path d="M3 16h3a2 2 0 0 1 2 2v3" /><path d="M16 21v-3a2 2 0 0 1 2-2h3" />
     </svg>
   ),
   Accessibility: ({ size = 16, color = "currentColor" }) => (
@@ -448,6 +431,9 @@ function WayfindingPrototype() {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedStairId, setSelectedStairId] = useState(null);
   const [selectedStairDirection, setSelectedStairDirection] = useState(null);
+  // Direzione REALMENTE percorsa (salito/sceso), per il testo del banner — diversa
+  // da selectedStairDirection, che ora indica la freccia "di ritorno" da evidenziare.
+  const [lastStairTravelDirection, setLastStairTravelDirection] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [lang, setLang] = useState("it"); // "it" | "en"
@@ -1032,13 +1018,17 @@ function WayfindingPrototype() {
     setSelectedId(id);
     setSelectedStairId(null);
     setSelectedStairDirection(null);
+    setLastStairTravelDirection(null);
   };
 
   const goToStair = (stair, targetFloor, direction) => {
     playTapSound();
     setFloor(targetFloor);
     setSelectedStairId(stair.id);
-    setSelectedStairDirection(direction);
+    // Evidenzia la freccia OPPOSTA a quella appena cliccata: sul nuovo piano, indica
+    // "da qui torneresti indietro", invece di ripetere la stessa direzione di salita/discesa.
+    setSelectedStairDirection(-direction);
+    setLastStairTravelDirection(direction);
     setSelectedId(null);
   };
 
@@ -1054,6 +1044,7 @@ function WayfindingPrototype() {
     setSelectedId(loc.id);
     setSelectedStairId(null);
     setSelectedStairDirection(null);
+    setLastStairTravelDirection(null);
   };
 
   const selected = VISIBLE_LOCATIONS.find((l) => l.id === selectedId) || null;
@@ -1340,6 +1331,7 @@ function WayfindingPrototype() {
                     setFloor(f.id);
                     setSelectedStairId(null);
                     setSelectedStairDirection(null);
+    setLastStairTravelDirection(null);
                   }}
                   className="flex-1 rounded-lg py-2.5 px-3 flex flex-col items-center transition-colors"
                   style={{
@@ -1705,14 +1697,14 @@ function WayfindingPrototype() {
                           style={{ background: "#122A22", border: "1px solid #245C45" }}
                         >
                           <span style={{ flexShrink: 0, width: 16, height: 16, display: "inline-flex" }}>
-                            {selectedStairDirection === -1 ? (
+                            {lastStairTravelDirection === -1 ? (
                               <Icon.ArrowDownCircle size={16} color={AC.stair} />
                             ) : (
                               <Icon.ArrowUpCircle size={16} color={AC.stair} />
                             )}
                           </span>
                           <span className="text-xs" style={{ color: "#8FE8C8" }}>
-                            {t.arrivedVia(building.stairs.find((s) => s.id === selectedStairId)?.label, selectedStairDirection, fl(currentFloor))}
+                            {t.arrivedVia(building.stairs.find((s) => s.id === selectedStairId)?.label, lastStairTravelDirection, fl(currentFloor))}
                           </span>
                         </div>
                       ) : (
@@ -1850,9 +1842,6 @@ function WayfindingPrototype() {
     </div>
   );
 }
-
-
-ReactDOM.createRoot(document.getElementById("root")).render(<WayfindingPrototype />);
 </script>
 
 <script>
